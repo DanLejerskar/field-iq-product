@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+out/
+*.tsbuildinfo
+.turbo/
+
+# Environment — NEVER commit secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Test / coverage
+coverage/
+playwright-report/
+test-results/
+
+# Local infra volumes
+.docker-data/
+
+# Native mobile build artifacts
+apps/companion/ios/Pods/
+apps/companion/ios/build/
+apps/companion/android/.gradle/
+apps/companion/android/build/
+apps/companion/android/app/build/
+*.keystore

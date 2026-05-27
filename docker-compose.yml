@@ -1,0 +1,74 @@
+# Local development infrastructure for EON Field IQ — LOTO v1.
+# Brings up Postgres, Redis, and MinIO (S3-compatible). Sufficient for M0–M10.
+# Hosted infra (Neon / Upstash / AWS S3) is only needed for M11+ deployment.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: field-iq-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: field_iq
+      POSTGRES_PASSWORD: field_iq_dev
+      POSTGRES_DB: field_iq
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U field_iq -d field_iq']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: field-iq-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: field-iq-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: field_iq
+      MINIO_ROOT_PASSWORD: field_iq_dev
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # One-shot job that creates the "field-iq" bucket on startup.
+  minio-setup:
+    image: minio/mc:latest
+    container_name: field-iq-minio-setup
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 field_iq field_iq_dev &&
+      mc mb --ignore-existing local/field-iq &&
+      echo 'Bucket field-iq ready.'
+      "
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:
