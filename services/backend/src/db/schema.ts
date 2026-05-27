@@ -2,8 +2,8 @@
  * Drizzle schema — mirrors 02_Architecture.md §3.3.2 exactly.
  * Column names are snake_case to match the spec; TS field names are camelCase.
  *
- * audit_log is APPEND-ONLY. A DB trigger (see migrations) rejects UPDATE/DELETE.
- * Corrections insert a new row and set superseded_by on the prior row.
+ * audit_log is APPEND-ONLY. A DB trigger (see drizzle/0001) rejects DELETE and any UPDATE
+ * other than a one-time superseded_by link. Corrections insert a new row and link the prior.
  */
 import {
   boolean,
