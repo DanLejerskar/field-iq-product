@@ -10,6 +10,7 @@ import { registerAdminRoutes } from './routes/admin.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerContentRoutes } from './routes/content.js';
 import { registerSessionRoutes } from './routes/sessions.js';
+import { registerWebSocketGateway } from './ws/gateway.js';
 import { startMockVerifier } from './workers/mock-verifier.js';
 
 export async function buildServer(): Promise<FastifyInstance> {
@@ -20,6 +21,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   });
 
   await app.register(cors, { origin: true });
+  await registerWebSocketGateway(app);
 
   app.setErrorHandler((error: FastifyError, _req, reply) => {
     if (error instanceof AppError) {

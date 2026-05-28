@@ -58,6 +58,11 @@ export function getRedis(): Redis {
   return redis();
 }
 
+/** A dedicated connection for pub/sub subscription (ioredis enters subscriber mode). */
+export function createSubscriber(): Redis {
+  return new Redis(config.redisUrl, { maxRetriesPerRequest: null });
+}
+
 export async function closeBus(): Promise<void> {
   if (pub) {
     await pub.quit();
