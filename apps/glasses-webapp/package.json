@@ -1,0 +1,24 @@
+{
+  "name": "@field-iq/glasses-webapp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "HUD Web App that runs on Meta Ray-Ban Display — renders LOTO step cards and consumes WebSocket verdicts.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 3001",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "preact": "^10.25.4"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.10.1",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.7",
+    "vitest": "^2.1.8"
+  }
+}

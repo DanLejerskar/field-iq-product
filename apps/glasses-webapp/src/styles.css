@@ -1,0 +1,244 @@
+/* HUD styles tuned for the 600×600 Meta Ray-Ban Display at 5000 nits.
+ * High-contrast palette; tabular numerals; everything fits inside one card. */
+
+:root {
+  --hud-size: 600px;
+  --bg: #000;
+  --ink: #f5f1e8;
+  --ink-dim: #a6afc2;
+  --accent-pending: #5ba8d6;
+  --accent-processing: #5ba8d6;
+  --accent-verified: #10b981;
+  --accent-retry: #f0b23a;
+  --accent-error: #e0625c;
+  --accent-complete: #10b981;
+  --accent-paused: #6b7689;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Inter', 'Trebuchet MS', system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+#app {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+}
+
+.hud {
+  width: var(--hud-size);
+  height: var(--hud-size);
+  position: relative;
+  display: grid;
+  grid-template-rows: 56px 1fr 96px;
+  padding: 28px;
+  background: var(--bg);
+  border: 1px solid #2c3853;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.hud__topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 18px;
+  color: var(--ink-dim);
+}
+
+.hud__step-strip {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.hud__step-strip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2c3853;
+}
+
+.hud__step-strip-dot--done {
+  background: var(--accent-verified);
+}
+
+.hud__step-strip-dot--active {
+  background: var(--ink);
+}
+
+.hud__body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 18px;
+  padding: 8px 0;
+}
+
+.hud__title {
+  font-size: 44px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin: 0;
+  line-height: 1.05;
+}
+
+.hud__instruction {
+  font-size: 22px;
+  line-height: 1.4;
+  margin: 0;
+  color: var(--ink);
+}
+
+.hud__hint {
+  font-size: 18px;
+  color: var(--ink-dim);
+}
+
+.hud__bottom {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hud__verify {
+  width: 100%;
+  height: 80px;
+  border-radius: 12px;
+  border: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--ink);
+  background: rgba(91, 168, 214, 0.18);
+  letter-spacing: 1px;
+  cursor: pointer;
+}
+
+.hud__verify[disabled] {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.hud__edge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 8px;
+  background: var(--accent-pending);
+}
+
+.hud--pending .hud__edge {
+  background: var(--accent-pending);
+}
+.hud--processing .hud__edge {
+  background: var(--accent-processing);
+  animation: hud-pulse 1.4s ease-in-out infinite;
+}
+.hud--verified .hud__edge {
+  background: var(--accent-verified);
+}
+.hud--retry .hud__edge {
+  background: var(--accent-retry);
+}
+.hud--error .hud__edge {
+  background: var(--accent-error);
+}
+.hud--complete .hud__edge {
+  background: var(--accent-complete);
+}
+.hud--paused .hud__edge {
+  background: var(--accent-paused);
+}
+
+.hud__banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.hud__banner--verified {
+  color: var(--accent-verified);
+  background: rgba(16, 185, 129, 0.12);
+}
+.hud__banner--retry {
+  color: var(--accent-retry);
+  background: rgba(240, 178, 58, 0.12);
+}
+.hud__banner--error {
+  color: var(--accent-error);
+  background: rgba(224, 98, 92, 0.12);
+}
+.hud__banner--paused {
+  color: var(--accent-paused);
+  background: rgba(107, 118, 137, 0.18);
+}
+
+.hud__spinner {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 3px solid rgba(91, 168, 214, 0.4);
+  border-top-color: var(--accent-processing);
+  animation: hud-spin 0.9s linear infinite;
+}
+
+@keyframes hud-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes hud-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.hud__reference {
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+  display: grid;
+  place-items: center;
+  padding: 28px;
+}
+
+.hud__reference img {
+  max-width: 100%;
+  max-height: 480px;
+  border-radius: 8px;
+}
+
+.hud__error-overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 20px;
+  padding: 24px;
+  text-align: center;
+}
