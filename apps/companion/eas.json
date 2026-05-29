@@ -1,0 +1,32 @@
+{
+  "cli": { "version": ">= 12.0.0" },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview-ios": {
+      "distribution": "internal",
+      "ios": { "simulator": false, "buildConfiguration": "Debug" }
+    },
+    "preview-android": {
+      "distribution": "internal",
+      "android": { "buildType": "apk" }
+    },
+    "production": {
+      "ios": { "autoIncrement": true },
+      "android": { "autoIncrement": true }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "ops@eonreality.com",
+        "ascAppId": "TODO_AFTER_FIRST_TESTFLIGHT_UPLOAD"
+      },
+      "android": {
+        "track": "internal"
+      }
+    }
+  }
+}

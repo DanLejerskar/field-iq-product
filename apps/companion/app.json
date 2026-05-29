@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "EON Field IQ",
+    "slug": "field-iq-companion",
+    "scheme": "fieldiq",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "newArchEnabled": true,
+    "ios": {
+      "bundleIdentifier": "com.eonreality.fieldiq",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Used as a fallback when no Ray-Ban Display is paired.",
+        "NSLocationWhenInUseUsageDescription": "Used to stamp verification photos with GPS for audit.",
+        "NSBluetoothAlwaysUsageDescription": "Used to pair with the Meta Ray-Ban Display + Neural Band."
+      }
+    },
+    "android": {
+      "package": "com.eonreality.fieldiq",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
+    },
+    "plugins": ["expo-router", "expo-camera", "expo-secure-store"]
+  }
+}
