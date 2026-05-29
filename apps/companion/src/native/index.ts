@@ -14,6 +14,9 @@ interface NativeBridge {
 }
 
 function selectMetaGlasses(): MetaGlassesModule {
+  // Kill-switch: even on a native build, EXPO_PUBLIC_USE_REAL_DAT=false forces the
+  // mock — useful for QA demos while a firmware fix is in flight.
+  if (process.env.EXPO_PUBLIC_USE_REAL_DAT === 'false') return MetaGlassesMock;
   const native = (NativeModules as Record<string, unknown>).MetaGlasses as NativeBridge | undefined;
   if (!native) return MetaGlassesMock;
   // The real bridge is provided by ios/MetaGlassesModule.swift +
