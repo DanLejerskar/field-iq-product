@@ -53,6 +53,7 @@ export const auditEventType = pgEnum('audit_event_type', [
   'abandon',
   'error',
   'override',
+  'note',
 ]);
 
 // --- Organization & access ---

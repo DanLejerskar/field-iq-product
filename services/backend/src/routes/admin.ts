@@ -105,4 +105,28 @@ export function registerAdminRoutes(app: FastifyInstance): void {
     });
     return { auditId: newId };
   });
+
+  // Test-prompt sandbox — admins iterate on a step's verification prompt against
+  // a sample photo. The Node API never calls Claude directly (CLAUDE.md "do-nots"),
+  // so v1 returns a deterministic mock verdict shaped exactly like the live verifier
+  // output. The real Claude call goes via services/verifier when an
+  // ANTHROPIC_API_KEY is configured.
+  app.post('/api/admin/steps/:id/test-prompt', { preHandler: authenticate }, async (req) => {
+    requireAdminOrTrainer(req);
+    const { id } = req.params as { id: string };
+    const { prompt } = (req.body ?? {}) as { prompt?: string; photoBase64?: string };
+    return {
+      stepId: id,
+      mode: 'mock' as const,
+      result: {
+        verified: true,
+        confidence: 'high' as const,
+        message: 'Sandbox verdict (mock).',
+        detail:
+          prompt && prompt.length > 0
+            ? `Mock pass for prompt of length ${prompt.length}. Set ANTHROPIC_API_KEY and run services/verifier for a live verdict.`
+            : 'Mock pass — no prompt provided.',
+      },
+    };
+  });
 }

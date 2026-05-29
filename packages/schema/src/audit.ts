@@ -32,7 +32,8 @@ export type AuditEventType =
   | 'complete'
   | 'abandon'
   | 'error'
-  | 'override';
+  | 'override'
+  | 'note';
 
 export interface AuditLog {
   id: AuditLogId;

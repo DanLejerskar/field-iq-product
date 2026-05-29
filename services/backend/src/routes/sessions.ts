@@ -1,6 +1,9 @@
+import { eq as eqOp } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { authenticate, requirePrincipal } from '../auth/plugin.js';
 import { badRequest, notFound } from '../errors.js';
+import { getDb as getDbDirect } from '../db/client.js';
+import { auditLog } from '../db/schema.js';
 import {
   createSessionWithSteps,
   getEquipmentById,
@@ -135,5 +138,32 @@ export function registerSessionRoutes(app: FastifyInstance): void {
     const { reason } = (req.body ?? {}) as { reason?: string };
     await abandonSession(id, reason ?? 'unspecified');
     return { ok: true };
+  });
+
+  // Audit log feed for the trainer dashboard's Session Detail view.
+  app.get('/api/sessions/:id/audit', { preHandler: authenticate }, async (req) => {
+    const { id } = req.params as { id: string };
+    const session = await getSession(id);
+    if (!session) throw notFound('Session not found');
+    const rows = await getDbDirect()
+      .select()
+      .from(auditLog)
+      .where(eqOp(auditLog.sessionId, id))
+      .orderBy(auditLog.timestamp);
+    return { auditLog: rows };
+  });
+
+  // Coach note — trainers append observations to the audit log during a session.
+  app.post('/api/sessions/:id/notes', { preHandler: authenticate }, async (req) => {
+    const { id } = req.params as { id: string };
+    const { text, stepNumber } = (req.body ?? {}) as { text?: string; stepNumber?: number };
+    if (!text || text.trim().length === 0) throw badRequest('text is required');
+    const auditId = await AuditLogService.append({
+      sessionId: id,
+      stepNumber,
+      eventType: 'note',
+      detail: text.trim(),
+    });
+    return { auditId };
   });
 }
