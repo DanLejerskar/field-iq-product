@@ -153,6 +153,22 @@ export function registerSessionRoutes(app: FastifyInstance): void {
     return { auditLog: rows };
   });
 
+  // Enqueue a PDF report render. The Python-free Node reporter (services/reporter)
+  // drains the same Redis stream and writes the PDF to S3.
+  app.post('/api/sessions/:id/report', { preHandler: authenticate }, async (req) => {
+    const { id } = req.params as { id: string };
+    const { format } = (req.body ?? {}) as { format?: 'letter' | 'a4' };
+    const session = await getSession(id);
+    if (!session) throw notFound('Session not found');
+    await getRedis().xadd(
+      'report-queue',
+      '*',
+      'job',
+      JSON.stringify({ sessionId: id, format: format ?? 'letter' }),
+    );
+    return { queued: true };
+  });
+
   // Coach note — trainers append observations to the audit log during a session.
   app.post('/api/sessions/:id/notes', { preHandler: authenticate }, async (req) => {
     const { id } = req.params as { id: string };
