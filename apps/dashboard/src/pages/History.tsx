@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { ApiClient } from '../api/client';
+import { MOCK_MODE } from '../mockMode';
 import { go } from '../router';
-import type { SessionStatus } from '../api/types';
+import { useDemoSnapshot } from '../state/useDemoSnapshot';
+import type { SessionRow, SessionStatus } from '../api/types';
 
 const api = new ApiClient(
   import.meta.env.VITE_API_HOST ?? 'http://localhost:3000',
@@ -19,12 +21,30 @@ const STATUSES: Array<'all' | SessionStatus> = [
 
 export function History() {
   const [status, setStatus] = useState<'all' | SessionStatus>('all');
+  const snapshot = useDemoSnapshot();
   const { data, isLoading, error } = useQuery({
     queryKey: ['history', status],
     queryFn: () => api.listSessions(status === 'all' ? undefined : status),
+    enabled: !MOCK_MODE,
   });
 
-  const rows = useMemo(() => data?.sessions ?? [], [data]);
+  const rows: SessionRow[] = useMemo(() => {
+    if (MOCK_MODE) {
+      const s: SessionRow = {
+        id: snapshot.session.id,
+        orgId: snapshot.session.orgId,
+        equipmentId: snapshot.session.equipmentId,
+        procedureId: snapshot.session.procedureId,
+        procedureVersion: snapshot.session.procedureVersion,
+        technicianUserId: snapshot.session.technicianUserId,
+        status: snapshot.session.status,
+        startedAt: snapshot.session.startedAt,
+        completedAt: snapshot.session.completedAt,
+      };
+      return status === 'all' || s.status === status ? [s] : [];
+    }
+    return data?.sessions ?? [];
+  }, [data, status, snapshot]);
 
   return (
     <div style={{ padding: 24 }}>
@@ -48,11 +68,11 @@ export function History() {
         ))}
       </div>
 
-      {isLoading ? (
+      {!MOCK_MODE && isLoading ? (
         <div>
           <span className="spinner" /> Loading…
         </div>
-      ) : error ? (
+      ) : !MOCK_MODE && error ? (
         <div style={{ color: 'var(--error)' }}>{String(error)}</div>
       ) : (
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>

@@ -99,6 +99,9 @@ importers:
 
   apps/dashboard:
     dependencies:
+      '@field-iq/mock-demo':
+        specifier: workspace:*
+        version: link:../../packages/mock-demo
       '@tanstack/react-query':
         specifier: ^5.62.0
         version: 5.100.14(react@19.2.6)
@@ -133,6 +136,9 @@ importers:
 
   apps/glasses-webapp:
     dependencies:
+      '@field-iq/mock-demo':
+        specifier: workspace:*
+        version: link:../../packages/mock-demo
       preact:
         specifier: ^10.25.4
         version: 10.29.2
@@ -146,6 +152,15 @@ importers:
       vite:
         specifier: ^6.0.7
         version: 6.4.2(@types/node@22.19.19)(lightningcss@1.27.0)(terser@5.48.0)(tsx@4.22.3)
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)(lightningcss@1.27.0)(terser@5.48.0)
+
+  packages/mock-demo:
+    devDependencies:
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
       vitest:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)(lightningcss@1.27.0)(terser@5.48.0)

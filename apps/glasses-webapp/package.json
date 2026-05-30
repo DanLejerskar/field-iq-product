@@ -13,6 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@field-iq/mock-demo": "workspace:*",
     "preact": "^10.25.4"
   },
   "devDependencies": {

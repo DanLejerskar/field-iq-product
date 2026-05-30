@@ -1,19 +1,23 @@
 /**
  * Glasses Web App root.
  *
- * URL contract (PHASE_1 prompt M6): the JWT lives in the URL FRAGMENT (`#token=…`) so
- * it never reaches the server in a GET log. The active session id is a query param
- * (`?session=…`). Without those, we show the home card.
- *
- * The app boots, parses URL, fetches the procedure steps over REST, opens the WS,
- * and dispatches events into the reducer.
+ * Two modes:
+ *  - Phase-2A DEMO (MOCK_MODE, default in prod): no URL params, no backend.
+ *    We hydrate from the @field-iq/mock-demo store and forward its scripted
+ *    timeline events directly into the reducer. The 6 HUD card states show
+ *    naturally as the timeline progresses.
+ *  - Real mode (VITE_MOCK_MODE=false): URL contract per PHASE_1 prompt M6 —
+ *    JWT in the URL fragment, session id in `?session=`. Boots REST + WS.
  */
 import { useEffect, useReducer, useState } from 'preact/hooks';
+import { getDemoStore, STEPS as DEMO_STEPS } from '@field-iq/mock-demo';
 import { attachInput } from './input.js';
 import { reduce } from './state.js';
 import { StepCard } from './StepCard.js';
 import { initialState, type SessionEventEnvelope, type StepInfo } from './types.js';
 import { connect } from './ws.js';
+
+const MOCK_MODE: boolean = import.meta.env.VITE_MOCK_MODE !== 'false';
 
 interface BootParams {
   token: string;
@@ -84,8 +88,53 @@ export function App() {
     return () => clearInterval(id);
   }, [startedAt]);
 
-  // Hydrate from REST + open WS.
+  // Hydrate + drive events.
   useEffect(() => {
+    if (MOCK_MODE) {
+      const store = getDemoStore();
+      const steps: StepInfo[] = DEMO_STEPS.map((s) => ({
+        stepNumber: s.stepNumber,
+        title: s.title,
+        instruction: s.instruction,
+        referenceImageUrl: s.photoDataUri,
+      }));
+      dispatch({
+        kind: 'hydrate',
+        sessionId: store.getSnapshot().session.id,
+        steps,
+        currentStep: store.getSnapshot().currentStep,
+      });
+      dispatch({ kind: 'connection', status: 'open' });
+      let lastSeen = 0;
+      return store.subscribe((snap) => {
+        if (snap.lastEventId <= lastSeen) return;
+        // Synthesise an envelope from the snapshot's most recent card state.
+        const stepNumber = snap.currentStep;
+        const envelope: SessionEventEnvelope = {
+          eventId: snap.lastEventId,
+          type:
+            snap.cardState === 'verified'
+              ? 'step.verified'
+              : snap.cardState === 'processing'
+                ? 'step.verification_started'
+                : snap.cardState === 'retry'
+                  ? 'step.retry'
+                  : snap.cardState === 'error'
+                    ? 'step.failed'
+                    : snap.cardState === 'complete'
+                      ? 'session.completed'
+                      : 'session.advanced',
+          sessionId: snap.session.id,
+          orgId: snap.session.orgId,
+          ts: new Date().toISOString(),
+          stepNumber,
+          message: snap.cardMessage,
+        };
+        dispatch({ kind: 'event', event: envelope });
+        lastSeen = snap.lastEventId;
+      });
+    }
+
     if (!params.sessionId || !params.token) return;
     let alive = true;
     fetchSession(params.apiHost, params.token, params.sessionId)
@@ -138,7 +187,7 @@ export function App() {
   if (bootError) {
     return <div class="hud__error-overlay">Could not load session: {bootError}</div>;
   }
-  if (!params.token) {
+  if (!MOCK_MODE && !params.token) {
     return (
       <div class="hud__error-overlay">
         Missing access token — open this URL from the Meta AI app's app list.
