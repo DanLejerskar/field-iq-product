@@ -1,0 +1,21 @@
+# Generated / vendored / binary
+node_modules/
+dist/
+build/
+.turbo/
+coverage/
+pnpm-lock.yaml
+*.pptx
+*.docx
+
+# Read-only: vendored colleague specs (DO NOT MODIFY)
+vendor/
+
+# Read-only: repo-root specs and notes maintained by Cowork (DO NOT MODIFY)
+FIELD_IQ_PRODUCT_SPEC.md
+VISION_TO_REALIZATION_SPEC.md
+META_SDK_LANDSCAPE.md
+ROADMAP.md
+PHASE_0_CLAUDE_CODE_PROMPT.md
+PHASE_1_LOTO_V1_CLAUDE_CODE_PROMPT.md
+PHASE_2_PRECONTEXT_NOTES.md

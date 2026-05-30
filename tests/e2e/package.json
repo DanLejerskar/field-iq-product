@@ -1,0 +1,20 @@
+{
+  "name": "@field-iq/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "End-to-end happy-path test for EON Field IQ LOTO v1.",
+  "scripts": {
+    "test": "playwright test",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint helpers specs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1",
+    "@types/node": "^22.10.5",
+    "@types/ws": "^8.5.13",
+    "postgres": "^3.4.5",
+    "typescript": "^5.7.3",
+    "ws": "^8.18.0"
+  }
+}
