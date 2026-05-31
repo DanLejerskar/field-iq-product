@@ -64,6 +64,16 @@ export const config = {
     return optional('USE_MOCK_VERIFIER', 'true') === 'true';
   },
   s3: {
+    /**
+     * True only when S3_ENDPOINT is explicitly configured to a non-placeholder
+     * value. On Railway (v1), this stays false and photos are stored as data
+     * URIs in audit_log.photo_url. Phase 2C flips this back on with R2/S3.
+     */
+    get enabled(): boolean {
+      loadEnv();
+      const v = process.env.S3_ENDPOINT;
+      return !!v && v.length > 0 && !v.startsWith('<');
+    },
     get endpoint(): string {
       return optional('S3_ENDPOINT', 'http://localhost:9000');
     },
@@ -82,5 +92,9 @@ export const config = {
     get forcePathStyle(): boolean {
       return optional('S3_FORCE_PATH_STYLE', 'true') === 'true';
     },
+  },
+  /** Per-photo cap enforced server-side at /verify. */
+  get photoSizeLimit(): number {
+    return Number(optional('PHOTO_SIZE_LIMIT_BYTES', String(1024 * 1024)));
   },
 };

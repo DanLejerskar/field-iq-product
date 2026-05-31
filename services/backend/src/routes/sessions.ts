@@ -1,6 +1,7 @@
 import { eq as eqOp } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { authenticate, requirePrincipal } from '../auth/plugin.js';
+import { config } from '../config/env.js';
 import { badRequest, notFound } from '../errors.js';
 import { getDb as getDbDirect } from '../db/client.js';
 import { auditLog } from '../db/schema.js';
@@ -22,9 +23,9 @@ import {
   completeSession,
   getProcedureVersion,
 } from '../services/session-service.js';
-import { S3StorageAdapter } from '../services/storage.js';
+import { makeStorageAdapter } from '../services/storage.js';
 
-const storage = new S3StorageAdapter();
+const storage = makeStorageAdapter();
 
 export function registerSessionRoutes(app: FastifyInstance): void {
   app.post('/api/sessions', { preHandler: authenticate }, async (req) => {
@@ -91,6 +92,12 @@ export function registerSessionRoutes(app: FastifyInstance): void {
     if (!step) throw badRequest(`No step ${stepNumber} in this procedure`);
 
     const bytes = Buffer.from(photoBase64, 'base64');
+    if (bytes.length > config.photoSizeLimit) {
+      // TODO(2c): once Cloudflare R2 is wired in, raise this cap and stream uploads.
+      throw badRequest(
+        `Photo too large: ${bytes.length} bytes (limit ${config.photoSizeLimit}). v1 stores photos inline in audit_log; raise PHOTO_SIZE_LIMIT_BYTES once S3/R2 is configured.`,
+      );
+    }
     const { key, sha256 } = await storage.putPhoto(p.org, id, stepNumber, bytes);
     const auditId = await AuditLogService.append({
       sessionId: id,
