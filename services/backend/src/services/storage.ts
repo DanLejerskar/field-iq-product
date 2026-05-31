@@ -64,3 +64,33 @@ export class S3StorageAdapter implements StorageAdapter {
     });
   }
 }
+
+/**
+ * Phase 2B default: store the photo as a `data:image/jpeg;base64,...` URI
+ * directly in `audit_log.photo_url`. Skips S3/R2 entirely while we're on
+ * Railway. The verifier already branches on the `data:` prefix.
+ *
+ * TODO(2c): swap back to S3StorageAdapter once Cloudflare R2 is wired.
+ */
+export class DataUriStorageAdapter implements StorageAdapter {
+  async putPhoto(
+    _orgId: string,
+    _sessionId: string,
+    _stepNumber: number,
+    bytes: Buffer,
+  ): Promise<{ key: string; sha256: string }> {
+    const dataUri = `data:image/jpeg;base64,${bytes.toString('base64')}`;
+    return { key: dataUri, sha256: sha256Hex(bytes) };
+  }
+
+  async presignGet(key: string): Promise<string> {
+    // Data URIs are already self-contained — no presign needed; the dashboard
+    // can stick them in <img src=...> directly.
+    return key;
+  }
+}
+
+/** Pick the right adapter based on whether S3 is configured. */
+export function makeStorageAdapter(): StorageAdapter {
+  return config.s3.enabled ? new S3StorageAdapter() : new DataUriStorageAdapter();
+}

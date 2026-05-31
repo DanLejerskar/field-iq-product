@@ -13,6 +13,7 @@ import type { FastifyInstance } from 'fastify';
 import type { WebSocket } from '@fastify/websocket';
 import { config } from '../config/env.js';
 import { verifyJwt, type JwtClaims } from '../auth/tokens.js';
+import { isAllowedOrigin } from '../server.js';
 import { createSubscriber, replaySessionEvents } from '../services/bus.js';
 
 interface SubscribeMessage {
@@ -36,6 +37,16 @@ export async function registerWebSocketGateway(app: FastifyInstance): Promise<vo
   await app.register(websocket);
 
   app.get('/ws', { websocket: true }, (socket: WebSocket, req) => {
+    const origin = req.headers.origin;
+    if (!isAllowedOrigin(origin)) {
+      send(socket, {
+        type: 'error',
+        code: 'forbidden_origin',
+        message: `Origin not allowed: ${origin ?? '(none)'}`,
+      });
+      socket.close();
+      return;
+    }
     const token = (req.query as { token?: string }).token;
     let principal: JwtClaims;
     try {

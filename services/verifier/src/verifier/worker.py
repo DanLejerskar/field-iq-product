@@ -44,19 +44,44 @@ def _make_anthropic_client(api_key: str):  # pragma: no cover — exercised only
     return Anthropic(api_key=api_key).messages
 
 
-def _make_photo_fetcher(cfg: Config):  # pragma: no cover — exercised only in live mode
-    import boto3
+def _decode_data_uri(uri: str) -> bytes:
+    """Base64-decode a `data:image/...;base64,XXXX` URI into raw image bytes.
 
-    s3 = boto3.client(
-        "s3",
-        endpoint_url=cfg.s3.endpoint,
-        region_name=cfg.s3.region,
-        aws_access_key_id=cfg.s3.access_key_id,
-        aws_secret_access_key=cfg.s3.secret_access_key,
-    )
+    Raises `binascii.Error` if the payload isn't valid base64 — better to fail
+    a verification job loudly than ship garbage to Anthropic.
+    """
+    import base64
+
+    _, _, b64 = uri.partition(",")
+    return base64.b64decode(b64, validate=True)
+
+
+def _make_photo_fetcher(cfg: Config):  # pragma: no cover — exercised only in live mode
+    """Build a fetcher that handles BOTH inline data URIs (v1, default) and S3 keys
+    (Phase 2C, when S3_ENDPOINT is configured). The backend writes whichever it
+    stored to `audit_log.photo_url`; we branch on the prefix here.
+    """
+    s3_client = None
+    if cfg.s3.endpoint:
+        import boto3
+
+        s3_client = boto3.client(
+            "s3",
+            endpoint_url=cfg.s3.endpoint,
+            region_name=cfg.s3.region,
+            aws_access_key_id=cfg.s3.access_key_id,
+            aws_secret_access_key=cfg.s3.secret_access_key,
+        )
 
     def fetch(key: str) -> bytes:
-        resp = s3.get_object(Bucket=cfg.s3.bucket, Key=key)
+        if key.startswith("data:"):
+            return _decode_data_uri(key)
+        if s3_client is None:
+            raise RuntimeError(
+                f"S3 not configured but photo_url is an S3 key: {key}. "
+                "Set S3_* env vars or store photos as data URIs."
+            )
+        resp = s3_client.get_object(Bucket=cfg.s3.bucket, Key=key)
         return resp["Body"].read()
 
     return fetch
@@ -135,7 +160,13 @@ def process_job(
 
 def main() -> None:  # pragma: no cover — long-running loop
     cfg = get_config()
-    log.info("verifier starting", mock=cfg.use_mock, model=cfg.anthropic_model)
+    if cfg.use_mock:
+        log.info("verifier starting in MOCK mode (no Claude calls)")
+    else:
+        log.info(
+            f"Claude Sonnet 4.6 verifier ready (model={cfg.anthropic_model}, "
+            "queue=verify-queue, group=verifier)"
+        )
 
     r = redis.Redis.from_url(cfg.redis_url)
     pg = psycopg.connect(cfg.database_url)

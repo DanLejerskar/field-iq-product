@@ -12,7 +12,7 @@ function info(msg: string): void {
   console.log(msg);
 }
 
-async function seed(): Promise<void> {
+export async function runSeed(): Promise<void> {
   const db = getDb();
 
   // Organization (natural key: name).
@@ -120,11 +120,14 @@ async function seed(): Promise<void> {
   info('Seed complete.');
 }
 
-seed()
-  .catch((err: unknown) => {
-    console.error(err instanceof Error ? err.message : String(err));
-    process.exitCode = 1;
-  })
-  .finally(() => {
-    void closeDb();
-  });
+const isMain = process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/^.*\//, ''));
+if (isMain) {
+  runSeed()
+    .catch((err: unknown) => {
+      console.error(err instanceof Error ? err.message : String(err));
+      process.exitCode = 1;
+    })
+    .finally(() => {
+      void closeDb();
+    });
+}
