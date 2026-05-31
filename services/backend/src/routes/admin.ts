@@ -1,8 +1,10 @@
 import { eq } from 'drizzle-orm';
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { authenticate, requirePrincipal } from '../auth/plugin.js';
-import { badRequest, forbidden, notFound } from '../errors.js';
+import { config } from '../config/env.js';
+import { badRequest, forbidden, notFound, unauthorized } from '../errors.js';
 import { getDb } from '../db/client.js';
+import { runMigrations } from '../db/migrate.js';
 import { equipment, procedures, steps } from '../db/schema.js';
 import { AuditLogService } from '../services/audit.js';
 
@@ -129,4 +131,39 @@ export function registerAdminRoutes(app: FastifyInstance): void {
       },
     };
   });
+
+  // --- Browser-triggerable migration (Phase 2C) ---
+  // Gated by the ADMIN_SETUP_TOKEN env var. Set the var in Railway, then
+  // `POST /api/admin/migrate` with header `X-Admin-Setup-Token: <value>`.
+  // Add `?seed=true` to also run the DAC #811 seed.
+  app.post('/api/admin/migrate', async (req) => {
+    const expected = config.adminSetupToken;
+    if (!expected) {
+      // Route disabled — no token configured.
+      throw notFound('Setup route not enabled. Set ADMIN_SETUP_TOKEN to enable.');
+    }
+    const provided = headerToken(req);
+    if (!provided || provided !== expected) {
+      throw unauthorized('Invalid or missing X-Admin-Setup-Token');
+    }
+    const seed = (req.query as { seed?: string }).seed === 'true';
+
+    const startedAt = Date.now();
+    req.log.info('admin/migrate: running migrations');
+    await runMigrations();
+    let seedRan = false;
+    if (seed) {
+      req.log.info('admin/migrate: running DAC #811 seed');
+      const { runSeed } = await import('../../seed/index.js');
+      await runSeed();
+      seedRan = true;
+    }
+    return { ok: true, seedRan, durationMs: Date.now() - startedAt };
+  });
+}
+
+function headerToken(req: FastifyRequest): string | undefined {
+  const raw = req.headers['x-admin-setup-token'];
+  if (Array.isArray(raw)) return raw[0];
+  return raw;
 }
