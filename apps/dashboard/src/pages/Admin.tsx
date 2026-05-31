@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type CSSProperties, useState } from 'react';
 import { ApiClient } from '../api/client';
+import { MOCK_MODE } from '../mockMode';
+import { useDemoSnapshot } from '../state/useDemoSnapshot';
 import type { EquipmentRow } from '../api/types';
 
 const api = new ApiClient(
@@ -20,7 +22,23 @@ export function Admin() {
 
 function EquipmentPanel() {
   const qc = useQueryClient();
-  const eq = useQuery({ queryKey: ['equipment'], queryFn: () => api.listEquipment() });
+  const snapshot = useDemoSnapshot();
+  const eq = useQuery({
+    queryKey: ['equipment'],
+    queryFn: () => api.listEquipment(),
+    enabled: !MOCK_MODE,
+  });
+  const rows: EquipmentRow[] = MOCK_MODE
+    ? [
+        {
+          id: snapshot.equipment.id,
+          orgId: snapshot.org.id,
+          name: snapshot.equipment.name,
+          assetTag: snapshot.equipment.assetTag,
+          qrCodeValue: snapshot.equipment.qrCodeValue,
+        },
+      ]
+    : (eq.data ?? []);
   const [form, setForm] = useState({ name: '', assetTag: '', qrCodeValue: '' });
   const create = useMutation({
     mutationFn: (body: Partial<EquipmentRow>) => api.createEquipment(body),
@@ -46,7 +64,7 @@ function EquipmentPanel() {
           </tr>
         </thead>
         <tbody>
-          {(eq.data ?? []).map((r) => (
+          {rows.map((r) => (
             <tr key={r.id} style={{ borderBottom: '1px solid var(--border)' }}>
               <td style={{ padding: '8px 4px' }}>{r.name}</td>
               <td style={{ padding: '8px 4px', color: 'var(--ink-dim)' }}>{r.assetTag}</td>

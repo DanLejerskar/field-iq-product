@@ -1,6 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { getDemoStore } from '@field-iq/mock-demo';
 import { ApiClient } from '../api/client';
+import { MOCK_MODE } from '../mockMode';
+import { useDemoSnapshot } from '../state/useDemoSnapshot';
 import type { AuditRow, StepRow } from '../api/types';
 
 const api = new ApiClient(
@@ -30,9 +33,79 @@ function stepDotState(
 }
 
 export function SessionDetail({ sessionId }: { sessionId: string }) {
+  return MOCK_MODE ? <MockSessionDetail /> : <RealSessionDetail sessionId={sessionId} />;
+}
+
+// --- MOCK ---
+
+function MockSessionDetail() {
+  const snapshot = useDemoSnapshot();
+  const store = getDemoStore();
+  const [note, setNote] = useState('');
+  const [toast, setToast] = useState<string | undefined>();
+
+  const steps: StepRow[] = snapshot.steps.map((s) => ({
+    id: `step-${s.stepNumber}`,
+    stepNumber: s.stepNumber,
+    title: s.title,
+    instruction: s.instruction,
+    referenceImageUrl: s.photoDataUri,
+    verificationPrompt: s.verificationPrompt,
+    successCriteria: null,
+    retryThreshold: 3,
+  }));
+  const audit: AuditRow[] = snapshot.audit.map((a) => ({
+    id: a.id,
+    sessionId: a.sessionId,
+    stepId: a.stepId,
+    stepNumber: a.stepNumber,
+    eventType: a.eventType,
+    photoUrl: a.photoUrl,
+    verified: a.verified,
+    confidence: a.confidence,
+    message: a.message,
+    detail: a.detail,
+    timestamp: a.timestamp,
+    supersededBy: a.supersededBy,
+  }));
+
+  function saveNote() {
+    if (!note.trim()) return;
+    store.addNote(note.trim());
+    setNote('');
+  }
+
+  function generateReport() {
+    setToast(
+      'Stub: in Phase 2B this triggers POST /api/sessions/:id/report and the OSHA-signed PDF lands in your downloads.',
+    );
+    window.setTimeout(() => setToast(undefined), 6000);
+  }
+
+  return (
+    <DetailView
+      audit={audit}
+      steps={steps}
+      currentStep={snapshot.currentStep}
+      status={snapshot.session.status}
+      procedureVersion={snapshot.session.procedureVersion}
+      startedAt={snapshot.session.startedAt}
+      traineeName={snapshot.trainee.fullName}
+      note={note}
+      onNote={setNote}
+      onSaveNote={saveNote}
+      onGenerateReport={generateReport}
+      toast={toast}
+      mockNotes={snapshot.notes}
+    />
+  );
+}
+
+// --- REAL (Phase 1 path; untouched semantics) ---
+
+function RealSessionDetail({ sessionId }: { sessionId: string }) {
   const qc = useQueryClient();
   const [note, setNote] = useState('');
-
   const sessionQ = useQuery({
     queryKey: ['session', sessionId],
     queryFn: () => api.getSession(sessionId),
@@ -53,40 +126,94 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
   });
 
   if (sessionQ.isLoading) return <Spinner />;
-  if (sessionQ.error) return <Error message={String(sessionQ.error)} />;
+  if (sessionQ.error) return <ErrorBox message={String(sessionQ.error)} />;
   const detail = sessionQ.data!;
   const audit = auditQ.data?.auditLog ?? [];
-  const current = detail.state.currentStepNumber;
   const steps = [...detail.steps].sort((a, b) => a.stepNumber - b.stepNumber);
+  return (
+    <DetailView
+      audit={audit}
+      steps={steps}
+      currentStep={detail.state.currentStepNumber}
+      status={detail.session.status}
+      procedureVersion={detail.session.procedureVersion}
+      startedAt={detail.session.startedAt}
+      traineeName="(trainee)"
+      note={note}
+      onNote={setNote}
+      onSaveNote={() => noteMut.mutate(note)}
+      onGenerateReport={() => undefined}
+      toast={undefined}
+      mockNotes={[]}
+    />
+  );
+}
+
+// --- presentational shell, shared by both ---
+
+interface ViewProps {
+  audit: AuditRow[];
+  steps: StepRow[];
+  currentStep: number;
+  status: string;
+  procedureVersion: string;
+  startedAt: string;
+  traineeName: string;
+  note: string;
+  onNote: (s: string) => void;
+  onSaveNote: () => void;
+  onGenerateReport: () => void;
+  toast?: string;
+  mockNotes: Array<{ id: string; timestamp: string; text: string; stepNumber?: number }>;
+}
+
+function DetailView(props: ViewProps) {
+  const { audit, steps, currentStep, status, procedureVersion, startedAt, traineeName } = props;
+  const verdictAudit = audit.filter(
+    (a) => a.eventType === 'verified' || a.eventType === 'retry' || a.eventType === 'error',
+  );
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24, padding: 24 }}>
       <div>
-        <h1 style={{ marginTop: 0 }}>Session {sessionId.slice(0, 8)}</h1>
+        <h1 style={{ marginTop: 0 }}>{traineeName} · DAC #811 LOTO</h1>
         <div style={{ color: 'var(--ink-dim)', marginBottom: 16 }}>
-          Procedure v{detail.session.procedureVersion} · {detail.session.status} · Started{' '}
-          {new Date(detail.session.startedAt).toLocaleString()}
+          Procedure v{procedureVersion} · {status} · Started {new Date(startedAt).toLocaleString()}
         </div>
 
-        <StepStrip steps={steps} current={current} audit={audit} />
+        <StepStrip steps={steps} current={currentStep} audit={audit} />
+
+        {status === 'completed' ? (
+          <div style={{ marginTop: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
+            <button onClick={props.onGenerateReport} style={primaryBtn}>
+              Generate report
+            </button>
+            <span style={{ color: 'var(--ink-faint)' }}>10 / 10 verified · OSHA 1910.147</span>
+          </div>
+        ) : null}
+        {props.toast ? (
+          <div
+            style={{
+              marginTop: 12,
+              padding: 10,
+              background: 'rgba(91, 168, 214, 0.12)',
+              borderRadius: 6,
+              color: 'var(--ink-dim)',
+              fontSize: 14,
+            }}
+          >
+            {props.toast}
+          </div>
+        ) : null}
 
         <h3 style={{ marginTop: 32, color: 'var(--ink-dim)', fontSize: 13, letterSpacing: 1 }}>
           STEP FEED
         </h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {audit
-            .filter(
-              (a) =>
-                a.eventType === 'verified' || a.eventType === 'retry' || a.eventType === 'error',
-            )
-            .map((a) => (
-              <AuditCard
-                key={a.id}
-                row={a}
-                step={steps.find((s) => s.stepNumber === a.stepNumber)}
-              />
-            ))}
-          {audit.length === 0 ? (
+          {verdictAudit.map((a) => (
+            <AuditCard key={a.id} row={a} step={steps.find((s) => s.stepNumber === a.stepNumber)} />
+          ))}
+          {verdictAudit.length === 0 ? (
             <div style={{ color: 'var(--ink-faint)' }}>No verdicts yet.</div>
           ) : null}
         </div>
@@ -97,8 +224,8 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
           COACH NOTES
         </h3>
         <textarea
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
+          value={props.note}
+          onChange={(e) => props.onNote(e.target.value)}
           rows={5}
           style={{
             width: '100%',
@@ -113,8 +240,8 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
           placeholder="Observations append to the audit log…"
         />
         <button
-          onClick={() => noteMut.mutate(note)}
-          disabled={!note.trim() || noteMut.isPending}
+          onClick={props.onSaveNote}
+          disabled={!props.note.trim()}
           style={{
             marginTop: 8,
             background: 'var(--field)',
@@ -123,34 +250,32 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
             padding: '10px 14px',
             borderRadius: 8,
             cursor: 'pointer',
-            opacity: !note.trim() ? 0.4 : 1,
+            opacity: !props.note.trim() ? 0.4 : 1,
           }}
         >
-          {noteMut.isPending ? 'Saving…' : 'Save note'}
+          Save note
         </button>
 
         <div style={{ marginTop: 24 }}>
-          {audit
-            .filter((a) => a.eventType === 'note')
-            .map((a) => (
-              <div
-                key={a.id}
-                style={{
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 8,
-                  padding: 12,
-                  marginBottom: 8,
-                  fontSize: 14,
-                }}
-              >
-                <div style={{ color: 'var(--ink-faint)', fontSize: 12, marginBottom: 4 }}>
-                  {new Date(a.timestamp).toLocaleTimeString()}
-                  {a.stepNumber ? ` · step ${a.stepNumber}` : ''}
-                </div>
-                <div>{a.detail}</div>
+          {props.mockNotes.map((n) => (
+            <div
+              key={n.id}
+              style={{
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                padding: 12,
+                marginBottom: 8,
+                fontSize: 14,
+              }}
+            >
+              <div style={{ color: 'var(--ink-faint)', fontSize: 12, marginBottom: 4 }}>
+                {new Date(n.timestamp).toLocaleTimeString()}
+                {n.stepNumber ? ` · step ${n.stepNumber}` : ''}
               </div>
-            ))}
+              <div>{n.text}</div>
+            </div>
+          ))}
         </div>
       </aside>
     </div>
@@ -208,18 +333,37 @@ function AuditCard({ row, step }: { row: AuditRow; step?: StepRow }) {
         padding: 12,
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-        <strong>
-          Step {row.stepNumber} · {step?.title ?? ''}
-        </strong>
-        <span style={{ color: 'var(--ink-faint)', fontSize: 12 }}>
-          {new Date(row.timestamp).toLocaleTimeString()}
-        </span>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: row.photoUrl ? '120px 1fr' : '1fr',
+          gap: 12,
+        }}
+      >
+        {row.photoUrl ? (
+          <img
+            src={row.photoUrl}
+            alt=""
+            style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: 6 }}
+          />
+        ) : null}
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+            <strong>
+              Step {row.stepNumber} · {step?.title ?? ''}
+            </strong>
+            <span style={{ color: 'var(--ink-faint)', fontSize: 12 }}>
+              {new Date(row.timestamp).toLocaleTimeString()}
+            </span>
+          </div>
+          <div style={{ color: 'var(--ink-dim)', fontSize: 14 }}>{row.message}</div>
+          {row.detail ? (
+            <div style={{ color: 'var(--ink-faint)', fontSize: 13, marginTop: 4 }}>
+              {row.detail}
+            </div>
+          ) : null}
+        </div>
       </div>
-      <div style={{ color: 'var(--ink-dim)', fontSize: 14 }}>{row.message}</div>
-      {row.detail ? (
-        <div style={{ color: 'var(--ink-faint)', fontSize: 13, marginTop: 4 }}>{row.detail}</div>
-      ) : null}
     </div>
   );
 }
@@ -232,6 +376,16 @@ function Spinner() {
   );
 }
 
-function Error({ message }: { message: string }) {
+function ErrorBox({ message }: { message: string }) {
   return <div style={{ color: 'var(--error)' }}>{message}</div>;
 }
+
+const primaryBtn = {
+  background: 'var(--field)',
+  color: 'var(--ink)',
+  border: 0,
+  padding: '10px 16px',
+  borderRadius: 8,
+  cursor: 'pointer',
+  fontWeight: 600,
+} as const;

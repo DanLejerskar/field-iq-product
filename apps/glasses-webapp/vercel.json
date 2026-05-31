@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "buildCommand": "cd ../.. && pnpm install --frozen-lockfile && pnpm --filter @field-iq/glasses-webapp build",
+  "outputDirectory": "dist",
+  "installCommand": "echo skip-default-install",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}

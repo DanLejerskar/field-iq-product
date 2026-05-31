@@ -13,6 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@field-iq/mock-demo": "workspace:*",
     "@tanstack/react-query": "^5.62.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
