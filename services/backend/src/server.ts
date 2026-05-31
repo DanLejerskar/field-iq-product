@@ -6,6 +6,7 @@
 import cors from '@fastify/cors';
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
 import { sql } from 'drizzle-orm';
+import { auditEnv, formatEntry } from './config/env-audit.js';
 import { config, loadEnv } from './config/env.js';
 import { getDb } from './db/client.js';
 import { runMigrations } from './db/migrate.js';
@@ -43,6 +44,16 @@ export function isAllowedOrigin(origin: string | undefined): boolean {
   return false;
 }
 
+/** Short, log-safe rendering of an error for /health bodies. */
+export function describeError(err: unknown): string {
+  if (err instanceof Error) {
+    const tag = err.constructor.name;
+    const msg = err.message.slice(0, 200);
+    return `${tag}: ${msg}`;
+  }
+  return String(err).slice(0, 200);
+}
+
 export async function buildServer(): Promise<FastifyInstance> {
   loadEnv();
   const app = Fastify({
@@ -75,24 +86,35 @@ export async function buildServer(): Promise<FastifyInstance> {
       });
   });
 
-  app.get('/health', async () => {
-    const health = { ok: true, db: false, redis: false };
-    const withTimeout = <T>(p: Promise<T>, ms = 2000): Promise<T> =>
+  app.get('/health', async (req) => {
+    const health: {
+      ok: boolean;
+      db: boolean;
+      redis: boolean;
+      dbError?: string;
+      redisError?: string;
+    } = { ok: true, db: false, redis: false };
+    const withTimeout = <T>(p: Promise<T>, ms = 5000): Promise<T> =>
       Promise.race([
         p,
         new Promise<T>((_, rej) => setTimeout(() => rej(new Error('timeout')), ms)),
       ]);
+
     try {
       await withTimeout(getDb().execute(sql`select 1`));
       health.db = true;
-    } catch {
+    } catch (err) {
       health.ok = false;
+      health.dbError = describeError(err);
+      req.log.error({ err: health.dbError }, 'health-check: db failed');
     }
     try {
       await withTimeout(getRedis().ping());
       health.redis = true;
-    } catch {
+    } catch (err) {
       health.ok = false;
+      health.redisError = describeError(err);
+      req.log.error({ err: health.redisError }, 'health-check: redis failed');
     }
     return health;
   });
@@ -124,10 +146,17 @@ async function bootMigrationsIfRequested(log: FastifyInstance['log']): Promise<v
   }
 }
 
+function logEnvAudit(log: FastifyInstance['log']): void {
+  log.info('--- env audit (boot) ---');
+  for (const e of auditEnv()) log.info(formatEntry(e));
+  log.info('--- end env audit ---');
+}
+
 const isMain = process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/^.*\//, ''));
 if (isMain) {
   buildServer()
     .then(async (app) => {
+      logEnvAudit(app.log);
       await bootMigrationsIfRequested(app.log);
       return app.listen({ port: config.port, host: '0.0.0.0' });
     })

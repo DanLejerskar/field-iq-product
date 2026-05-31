@@ -97,4 +97,16 @@ export const config = {
   get photoSizeLimit(): number {
     return Number(optional('PHOTO_SIZE_LIMIT_BYTES', String(1024 * 1024)));
   },
+  /**
+   * Browser-triggerable migration gate. When set, callers can hit
+   * `POST /api/admin/migrate` with header `X-Admin-Setup-Token: <value>`
+   * to run drizzle migrations + (optionally) the DAC #811 seed without
+   * a Railway shell. Leave unset to disable the route entirely.
+   */
+  get adminSetupToken(): string | undefined {
+    loadEnv();
+    const v = process.env.ADMIN_SETUP_TOKEN;
+    if (!v || v.startsWith('<')) return undefined;
+    return v;
+  },
 };

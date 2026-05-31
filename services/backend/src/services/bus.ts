@@ -5,7 +5,7 @@
  *  - Enqueues verification jobs onto a Redis Stream consumed by the Python verifier (M5)
  *    or the in-process mock verifier (M3).
  */
-import { Redis } from 'ioredis';
+import { Redis, type RedisOptions } from 'ioredis';
 import { config } from '../config/env.js';
 import { orgChannel, sessionChannel, type SessionEventEnvelope } from './events.js';
 
@@ -21,10 +21,30 @@ export interface VerificationJob {
   verificationPrompt: string;
 }
 
+/**
+ * Build the ioredis options Upstash + local Redis both need.
+ *
+ *  - `maxRetriesPerRequest: null` keeps commands queued until the client
+ *    eventually connects (matches Phase-1 behaviour, doesn't 500 mid-request).
+ *  - `connectTimeout: 10_000` fails fast when the network can't reach Upstash
+ *    so /health surfaces a real error instead of hanging.
+ *  - For `rediss://` URLs we pass `tls: {}` explicitly even though ioredis
+ *    auto-enables TLS on the scheme — belt-and-braces against any version
+ *    where URL parsing drops the flag.
+ */
+export function buildRedisOptions(url: string): RedisOptions {
+  const tls = url.startsWith('rediss://') ? {} : undefined;
+  return {
+    maxRetriesPerRequest: null,
+    connectTimeout: 10_000,
+    ...(tls ? { tls } : {}),
+  };
+}
+
 let pub: Redis | undefined;
 
 function redis(): Redis {
-  if (!pub) pub = new Redis(config.redisUrl, { maxRetriesPerRequest: null });
+  if (!pub) pub = new Redis(config.redisUrl, buildRedisOptions(config.redisUrl));
   return pub;
 }
 
@@ -60,7 +80,7 @@ export function getRedis(): Redis {
 
 /** A dedicated connection for pub/sub subscription (ioredis enters subscriber mode). */
 export function createSubscriber(): Redis {
-  return new Redis(config.redisUrl, { maxRetriesPerRequest: null });
+  return new Redis(config.redisUrl, buildRedisOptions(config.redisUrl));
 }
 
 export async function closeBus(): Promise<void> {
