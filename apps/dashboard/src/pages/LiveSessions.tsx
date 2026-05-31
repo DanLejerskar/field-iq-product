@@ -109,7 +109,8 @@ export function LiveSessions() {
           style={{
             gridColumn: '1 / -1',
             padding: '8px 16px',
-            background: connection === 'paused' ? 'rgba(240, 178, 58, 0.15)' : 'rgba(91, 168, 214, 0.12)',
+            background:
+              connection === 'paused' ? 'rgba(240, 178, 58, 0.15)' : 'rgba(91, 168, 214, 0.12)',
             color: connection === 'paused' ? 'var(--retry)' : 'var(--ink-dim)',
             fontSize: 13,
             borderBottom: '1px solid var(--border)',

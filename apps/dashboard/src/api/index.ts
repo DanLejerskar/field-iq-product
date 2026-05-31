@@ -19,7 +19,11 @@ export { MOCK_MODE };
  * When VITE_API_URL is set but VITE_WS_URL is not, we derive the WS host from
  * the API URL (http→ws, https→wss).
  */
-const RAW_API = (import.meta.env.VITE_API_URL ?? import.meta.env.VITE_API_HOST ?? 'http://localhost:3000').replace(/\/+$/, '');
+const RAW_API = (
+  import.meta.env.VITE_API_URL ??
+  import.meta.env.VITE_API_HOST ??
+  'http://localhost:3000'
+).replace(/\/+$/, '');
 const RAW_WS =
   import.meta.env.VITE_WS_URL ??
   import.meta.env.VITE_WS_HOST ??

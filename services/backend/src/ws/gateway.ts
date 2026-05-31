@@ -39,7 +39,11 @@ export async function registerWebSocketGateway(app: FastifyInstance): Promise<vo
   app.get('/ws', { websocket: true }, (socket: WebSocket, req) => {
     const origin = req.headers.origin;
     if (!isAllowedOrigin(origin)) {
-      send(socket, { type: 'error', code: 'forbidden_origin', message: `Origin not allowed: ${origin ?? '(none)'}` });
+      send(socket, {
+        type: 'error',
+        code: 'forbidden_origin',
+        message: `Origin not allowed: ${origin ?? '(none)'}`,
+      });
       socket.close();
       return;
     }

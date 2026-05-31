@@ -18,6 +18,7 @@
     "migrate": "pnpm --filter @field-iq/backend migrate",
     "seed": "pnpm --filter @field-iq/backend seed",
     "test:e2e": "pnpm --filter @field-iq/e2e test",
+    "test:e2e:phase2b": "pnpm --filter @field-iq/e2e exec playwright test phase_2b_real_backend",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
