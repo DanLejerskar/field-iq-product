@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useSyncExternalStore } from 'react';
 import { getDemoStore } from '@field-iq/mock-demo';
-import { api, MOCK_MODE, wsHost } from '../api';
+import { api, apiHost, MOCK_MODE, wsHost } from '../api';
 import { go } from '../router';
 import { useLiveFeed } from '../state/useLiveFeed';
 import type { SessionRow } from '../api/types';
@@ -104,6 +104,22 @@ export function LiveSessions() {
           </a>
         </div>
       </header>
+      {!MOCK_MODE && connection !== 'open' ? (
+        <div
+          style={{
+            gridColumn: '1 / -1',
+            padding: '8px 16px',
+            background: connection === 'paused' ? 'rgba(240, 178, 58, 0.15)' : 'rgba(91, 168, 214, 0.12)',
+            color: connection === 'paused' ? 'var(--retry)' : 'var(--ink-dim)',
+            fontSize: 13,
+            borderBottom: '1px solid var(--border)',
+          }}
+        >
+          {connection === 'paused'
+            ? `⚠ Backend unreachable at ${apiHost} — retrying…`
+            : `Connecting to backend at ${apiHost}…`}
+        </div>
+      ) : null}
 
       <aside className="session-list">
         <h2>Sessions</h2>

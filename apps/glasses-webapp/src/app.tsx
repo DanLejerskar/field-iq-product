@@ -29,11 +29,24 @@ interface BootParams {
 function readParams(): BootParams {
   const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ''));
   const query = new URLSearchParams(window.location.search);
+  // Phase 2B canonical names (VITE_API_URL / VITE_WS_URL) take priority; the
+  // Phase 1/2A names (VITE_API_HOST / VITE_WS_HOST) still work. When only the
+  // API URL is set, derive the WS host from it (http→ws, https→wss).
+  const apiHost = (
+    import.meta.env.VITE_API_URL ??
+    import.meta.env.VITE_API_HOST ??
+    'http://localhost:3000'
+  ).replace(/\/+$/, '');
+  const wsHost = (
+    import.meta.env.VITE_WS_URL ??
+    import.meta.env.VITE_WS_HOST ??
+    apiHost.replace(/^http(s?):\/\//, (_m: string, s: string) => `ws${s}://`)
+  ).replace(/\/+$/, '');
   return {
     token: fragment.get('token') ?? query.get('token') ?? '',
     sessionId: query.get('session') ?? undefined,
-    apiHost: import.meta.env.VITE_API_HOST ?? 'http://localhost:3000',
-    wsHost: import.meta.env.VITE_WS_HOST ?? 'ws://localhost:3000',
+    apiHost,
+    wsHost,
   };
 }
 
