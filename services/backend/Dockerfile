@@ -44,7 +44,7 @@ COPY --from=builder /repo/packages/schema/package.json packages/schema/package.j
 COPY --from=builder /repo/packages/schema/dist packages/schema/dist
 COPY --from=builder /repo/services/backend/package.json services/backend/package.json
 COPY --from=builder /repo/services/backend/dist services/backend/dist
-COPY --from=builder /repo/services/backend/drizzle services/backend/drizzle
+COPY --from=builder /repo/services/backend/drizzle services/backend/dist/drizzle
 COPY --from=builder /repo/services/backend/seed services/backend/seed
 
 # Production deps only (skips drizzle-kit, vitest, tsx, etc.).
