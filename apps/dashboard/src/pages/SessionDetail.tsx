@@ -2,14 +2,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { getDemoStore } from '@field-iq/mock-demo';
 import { ApiClient } from '../api/client';
+import { apiHost } from '../api';
+import { AUTH_JWT_KEY } from '../auth/auth';
 import { MOCK_MODE } from '../mockMode';
 import { useDemoSnapshot } from '../state/useDemoSnapshot';
 import type { AuditRow, StepRow } from '../api/types';
 
-const api = new ApiClient(
-  import.meta.env.VITE_API_HOST ?? 'http://localhost:3000',
-  () => localStorage.getItem('jwt') ?? undefined,
-);
+const api = new ApiClient(apiHost, () => localStorage.getItem(AUTH_JWT_KEY) ?? undefined);
 
 const STEP_COLORS: Record<string, string> = {
   pending: 'var(--ink-faint)',

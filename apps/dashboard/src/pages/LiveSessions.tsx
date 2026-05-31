@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useMemo, useSyncExternalStore } from 'react';
 import { getDemoStore } from '@field-iq/mock-demo';
 import { api, apiHost, MOCK_MODE, wsHost } from '../api';
+import { loadAuth } from '../auth/auth';
 import { go } from '../router';
 import { useLiveFeed } from '../state/useLiveFeed';
 import type { SessionRow } from '../api/types';
@@ -16,20 +17,8 @@ function timeAgo(iso: string): string {
 }
 
 function readJwtOrg(): { jwt: string; orgId: string } {
-  const jwt = localStorage.getItem('jwt') ?? '';
-  let orgId = '';
-  try {
-    const [, payloadB64] = jwt.split('.');
-    if (payloadB64) {
-      const payload = JSON.parse(atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/'))) as {
-        org?: string;
-      };
-      orgId = payload.org ?? '';
-    }
-  } catch {
-    /* no jwt */
-  }
-  return { jwt, orgId };
+  const auth = loadAuth();
+  return { jwt: auth?.jwt ?? '', orgId: auth?.org.id ?? '' };
 }
 
 function useDemoSnapshot() {

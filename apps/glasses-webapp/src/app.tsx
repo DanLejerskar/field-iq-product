@@ -1,17 +1,30 @@
 /**
  * Glasses Web App root.
  *
- * Two modes:
- *  - Phase-2A DEMO (MOCK_MODE, default in prod): no URL params, no backend.
- *    We hydrate from the @field-iq/mock-demo store and forward its scripted
- *    timeline events directly into the reducer. The 6 HUD card states show
- *    naturally as the timeline progresses.
- *  - Real mode (VITE_MOCK_MODE=false): URL contract per PHASE_1 prompt M6 —
- *    JWT in the URL fragment, session id in `?session=`. Boots REST + WS.
+ * Three boot paths:
+ *  1. Phase-2A DEMO (MOCK_MODE, the production default for the Vercel build):
+ *     no URL params, no backend. Hydrate from the @field-iq/mock-demo store and
+ *     forward its scripted timeline events directly into the reducer.
+ *  2. Meta companion app (real mode + URL fragment token): the companion
+ *     supplies `#token=…&session=…`; we boot REST + WS as in Phase 1.
+ *  3. Manual browser sign-in (real mode + magic link): the user lands on the
+ *     Vercel URL directly, hits the `<SignIn>` fallback below the "no token"
+ *     gate, receives a magic link, and either clicks it (lands on
+ *     `#/auth/verify?token=…`) or pastes the token. We persist the JWT in
+ *     localStorage and the rest of the flow works exactly like path 2.
  */
 import { useEffect, useReducer, useState } from 'preact/hooks';
 import { getDemoStore, STEPS as DEMO_STEPS } from '@field-iq/mock-demo';
+import {
+  clearAuth,
+  loadAuth,
+  parseTokenFromHash,
+  storeAuth,
+  verifyMagicLink,
+  type AuthPayload,
+} from './auth.js';
 import { attachInput } from './input.js';
+import { SignIn } from './SignIn.js';
 import { reduce } from './state.js';
 import { StepCard } from './StepCard.js';
 import { initialState, type SessionEventEnvelope, type StepInfo } from './types.js';
@@ -26,12 +39,7 @@ interface BootParams {
   wsHost: string;
 }
 
-function readParams(): BootParams {
-  const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-  const query = new URLSearchParams(window.location.search);
-  // Phase 2B canonical names (VITE_API_URL / VITE_WS_URL) take priority; the
-  // Phase 1/2A names (VITE_API_HOST / VITE_WS_HOST) still work. When only the
-  // API URL is set, derive the WS host from it (http→ws, https→wss).
+function envHosts(): { apiHost: string; wsHost: string } {
   const apiHost = (
     import.meta.env.VITE_API_URL ??
     import.meta.env.VITE_API_HOST ??
@@ -42,11 +50,18 @@ function readParams(): BootParams {
     import.meta.env.VITE_WS_HOST ??
     apiHost.replace(/^http(s?):\/\//, (_m: string, s: string) => `ws${s}://`)
   ).replace(/\/+$/, '');
+  return { apiHost, wsHost };
+}
+
+function readParams(): BootParams {
+  const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  const query = new URLSearchParams(window.location.search);
+  const fragmentToken = fragment.get('token') ?? query.get('token') ?? '';
+  const storedToken = loadAuth()?.jwt ?? '';
   return {
-    token: fragment.get('token') ?? query.get('token') ?? '',
+    token: fragmentToken || storedToken,
     sessionId: query.get('session') ?? undefined,
-    apiHost,
-    wsHost,
+    ...envHosts(),
   };
 }
 
@@ -88,11 +103,91 @@ async function fetchSession(
   };
 }
 
+/**
+ * Start a fresh LOTO session for the signed-in technician: pick the first
+ * piece of equipment in their org, resolve its active procedure, and POST
+ * /api/sessions. Returns the new session id. Phase 2D plumbing — production
+ * flow would have the companion app scan a QR code.
+ */
+async function startSession(apiHost: string, token: string): Promise<string> {
+  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+  const eqRes = await fetch(`${apiHost}/api/admin/equipment`, { headers });
+  if (!eqRes.ok) throw new Error(`Could not list equipment (${eqRes.status})`);
+  const equipmentList = (await eqRes.json()) as Array<{ id: string; qrCodeValue: string }>;
+  const equipment = equipmentList[0];
+  if (!equipment) throw new Error('No equipment seeded for this org');
+  const resolved = await fetch(`${apiHost}/api/equipment/resolve`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ qrValue: equipment.qrCodeValue }),
+  });
+  if (!resolved.ok) throw new Error(`Could not resolve procedure (${resolved.status})`);
+  const { activeProcedure } = (await resolved.json()) as {
+    activeProcedure: { id: string } | null;
+  };
+  if (!activeProcedure) throw new Error('Equipment has no active procedure');
+  const create = await fetch(`${apiHost}/api/sessions`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ equipmentId: equipment.id, procedureId: activeProcedure.id }),
+  });
+  if (!create.ok) throw new Error(`Could not create session (${create.status})`);
+  const { sessionId } = (await create.json()) as { sessionId: string };
+  return sessionId;
+}
+
+async function uploadPhoto(
+  apiHost: string,
+  token: string,
+  sessionId: string,
+  stepNumber: number,
+  file: File,
+): Promise<void> {
+  const buf = await file.arrayBuffer();
+  // btoa(String.fromCharCode(...new Uint8Array(buf))) blows the stack on large files,
+  // so chunk through TextEncoder + base64 manually.
+  const bytes = new Uint8Array(buf);
+  let binary = '';
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  const photoBase64 = btoa(binary);
+  const res = await fetch(`${apiHost}/api/sessions/${sessionId}/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ stepNumber, photoBase64 }),
+  });
+  if (!res.ok) throw new Error(`Photo upload failed (${res.status})`);
+}
+
+type AuthState =
+  | { kind: 'mock' }
+  | { kind: 'verifying' }
+  | { kind: 'authed'; auth: AuthPayload }
+  | { kind: 'anon'; error?: string };
+
+function initialAuth(): AuthState {
+  if (MOCK_MODE) return { kind: 'mock' };
+  if (typeof window !== 'undefined' && parseTokenFromHash(window.location.hash)) {
+    return { kind: 'verifying' };
+  }
+  const existing = loadAuth();
+  if (existing) return { kind: 'authed', auth: existing };
+  return { kind: 'anon' };
+}
+
 export function App() {
   const [state, dispatch] = useReducer(reduce, initialState);
   const [bootError, setBootError] = useState<string | undefined>();
   const [elapsed, setElapsed] = useState('0:00');
   const [startedAt] = useState(Date.now());
+  const [authState, setAuthState] = useState<AuthState>(initialAuth);
+  const [showSignIn, setShowSignIn] = useState(false);
+  const [startingSession, setStartingSession] = useState(false);
+  // wsHost lives on params (via envHosts) for the realtime path; pull apiHost
+  // separately so the SignIn / start-session affordances don't depend on URL state.
+  const { apiHost } = envHosts();
   const params = readParams();
 
   // Tick the elapsed timer once per second.
@@ -100,6 +195,33 @@ export function App() {
     const id = setInterval(() => setElapsed(formatElapsed(startedAt)), 1000);
     return () => clearInterval(id);
   }, [startedAt]);
+
+  // Magic-link landing route: verify, store JWT, strip the hash, rerender.
+  useEffect(() => {
+    if (authState.kind !== 'verifying') return;
+    const token = parseTokenFromHash(window.location.hash);
+    if (!token) {
+      setAuthState({ kind: 'anon' });
+      return;
+    }
+    let cancelled = false;
+    verifyMagicLink(apiHost, token)
+      .then((payload) => {
+        if (cancelled) return;
+        storeAuth(payload);
+        const url = window.location.pathname + window.location.search;
+        window.history.replaceState(null, '', url || '/');
+        setAuthState({ kind: 'authed', auth: payload });
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        clearAuth();
+        setAuthState({ kind: 'anon', error: err instanceof Error ? err.message : String(err) });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [authState.kind, apiHost]);
 
   // Hydrate + drive events.
   useEffect(() => {
@@ -121,7 +243,6 @@ export function App() {
       let lastSeen = 0;
       return store.subscribe((snap) => {
         if (snap.lastEventId <= lastSeen) return;
-        // Synthesise an envelope from the snapshot's most recent card state.
         const stepNumber = snap.currentStep;
         const envelope: SessionEventEnvelope = {
           eventId: snap.lastEventId,
@@ -197,13 +318,74 @@ export function App() {
     });
   }, [state.cardState, params.sessionId, params.apiHost, params.token]);
 
+  if (authState.kind === 'verifying') {
+    return <div class="hud__error-overlay">Signing you in…</div>;
+  }
+
+  if (authState.kind === 'anon' && !params.token) {
+    return (
+      <div class="hud__error-overlay" style={{ flexDirection: 'column', gap: 12 }}>
+        <div>Missing access token — open this URL from the Meta AI app's app list.</div>
+        {authState.error ? (
+          <div style={{ color: 'var(--accent-error)', fontSize: 13 }}>{authState.error}</div>
+        ) : null}
+        {showSignIn ? (
+          <SignIn
+            apiHost={apiHost}
+            onSignedIn={(payload) => setAuthState({ kind: 'authed', auth: payload })}
+          />
+        ) : (
+          <button class="hud__verify" style={{ marginTop: 12 }} onClick={() => setShowSignIn(true)}>
+            Sign in manually (browser testing)
+          </button>
+        )}
+      </div>
+    );
+  }
+
   if (bootError) {
     return <div class="hud__error-overlay">Could not load session: {bootError}</div>;
   }
-  if (!MOCK_MODE && !params.token) {
+
+  // Signed in (auth state or fragment token) but no active session → start one.
+  if (!MOCK_MODE && params.token && !params.sessionId) {
     return (
-      <div class="hud__error-overlay">
-        Missing access token — open this URL from the Meta AI app's app list.
+      <div class="hud__error-overlay" style={{ flexDirection: 'column', gap: 16 }}>
+        <div>Signed in. Start a new LOTO session?</div>
+        <button
+          class="hud__verify"
+          disabled={startingSession}
+          onClick={async () => {
+            setStartingSession(true);
+            try {
+              const id = await startSession(apiHost, params.token);
+              const url = new URL(window.location.href);
+              url.searchParams.set('session', id);
+              window.location.assign(url.toString());
+            } catch (err) {
+              setBootError(err instanceof Error ? err.message : String(err));
+            } finally {
+              setStartingSession(false);
+            }
+          }}
+        >
+          {startingSession ? 'Starting…' : 'Start LOTO session'}
+        </button>
+        <button
+          onClick={() => {
+            clearAuth();
+            window.location.assign('/');
+          }}
+          style={{
+            background: 'transparent',
+            color: 'var(--ink-dim)',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: 12,
+          }}
+        >
+          sign out
+        </button>
       </div>
     );
   }
@@ -215,6 +397,21 @@ export function App() {
       onVerify={() => {
         /* photo capture happens on the companion (M7) */
       }}
+      onPhoto={
+        params.sessionId && params.token && state.currentStep !== undefined
+          ? (file) => {
+              void uploadPhoto(
+                params.apiHost,
+                params.token,
+                params.sessionId!,
+                state.currentStep!,
+                file,
+              ).catch((err: unknown) => {
+                setBootError(err instanceof Error ? err.message : String(err));
+              });
+            }
+          : undefined
+      }
     />
   );
 }

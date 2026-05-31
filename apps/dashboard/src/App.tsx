@@ -1,6 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { MOCK_MODE } from './api';
+import { AuthGate } from './auth/AuthGate';
+import { clearAuth, loadAuth } from './auth/auth';
 import { Admin } from './pages/Admin';
 import { History } from './pages/History';
 import { LiveSessions } from './pages/LiveSessions';
@@ -38,6 +40,7 @@ function CurrentRoute() {
 }
 
 function PageShell({ children }: { children: ReactNode }) {
+  const auth = MOCK_MODE ? null : loadAuth();
   return (
     <div>
       <header className="topbar">
@@ -52,6 +55,22 @@ function PageShell({ children }: { children: ReactNode }) {
           <a href="#/admin" style={{ color: 'var(--ink-dim)', textDecoration: 'none' }}>
             admin
           </a>
+          {auth ? (
+            <span style={{ color: 'var(--ink-faint)', fontSize: 12 }}>
+              {auth.user.fullName} ·{' '}
+              <a
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  clearAuth();
+                  window.location.assign('/');
+                }}
+                style={{ color: 'var(--ink-dim)', textDecoration: 'none' }}
+              >
+                sign out
+              </a>
+            </span>
+          ) : null}
         </nav>
       </header>
       <main style={{ padding: 0 }}>{children}</main>
@@ -62,7 +81,9 @@ function PageShell({ children }: { children: ReactNode }) {
 export function App() {
   return (
     <QueryClientProvider client={client}>
-      <CurrentRoute />
+      <AuthGate>
+        <CurrentRoute />
+      </AuthGate>
     </QueryClientProvider>
   );
 }
