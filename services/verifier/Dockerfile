@@ -17,10 +17,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
 
 WORKDIR /app
 
+# Step 1: install dependencies only. This layer stays cached across code-only
+# edits — uv.lock + pyproject.toml change far less often than src/.
 COPY services/verifier/pyproject.toml services/verifier/uv.lock ./
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev --no-install-project
 
+# Step 2: copy the project source and complete the editable install. uv.lock
+# pins `field-iq-verifier` as `source = { editable = "." }`, so the package
+# directory must exist before `uv sync` finishes.
 COPY services/verifier/src ./src
+RUN uv sync --frozen --no-dev
 
 # ---- Runtime ----
 FROM python:3.12-slim AS runtime

@@ -4,6 +4,7 @@
  * by the in-memory @field-iq/mock-demo store; otherwise we wire the real
  * fetch-based ApiClient against the M3 backend.
  */
+import { AUTH_JWT_KEY } from '../auth/auth';
 import { MOCK_MODE } from '../mockMode';
 import { ApiClient } from './client';
 import { MockApiClient } from './mock-client';
@@ -34,4 +35,4 @@ export const wsHost: string = RAW_WS.replace(/\/+$/, '');
 
 export const api: ApiClient | MockApiClient = MOCK_MODE
   ? new MockApiClient()
-  : new ApiClient(apiHost, () => localStorage.getItem('jwt') ?? undefined);
+  : new ApiClient(apiHost, () => localStorage.getItem(AUTH_JWT_KEY) ?? undefined);

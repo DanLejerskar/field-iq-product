@@ -4,12 +4,30 @@ interface Props {
   state: HudState;
   elapsed: string;
   onVerify: () => void;
+  /** Browser-testing affordance: upload a photo for the current step. */
+  onPhoto?: (file: File) => void;
 }
 
-function bottom(state: HudState, onVerify: () => void) {
+function bottom(state: HudState, onVerify: () => void, onPhoto: Props['onPhoto']) {
   switch (state.cardState) {
     case 'pending':
-      return (
+      return onPhoto ? (
+        <label
+          class="hud__verify"
+          style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }}
+        >
+          ● PHOTO
+          <input
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              const file = (e.currentTarget as HTMLInputElement).files?.[0];
+              if (file) onPhoto(file);
+            }}
+          />
+        </label>
+      ) : (
         <button class="hud__verify" onClick={onVerify}>
           ● VERIFY
         </button>
@@ -49,7 +67,7 @@ function bottom(state: HudState, onVerify: () => void) {
   }
 }
 
-export function StepCard({ state, elapsed, onVerify }: Props) {
+export function StepCard({ state, elapsed, onVerify, onPhoto }: Props) {
   const step = state.steps.find((s) => s.stepNumber === state.currentStep);
   if (state.showingReference && step?.referenceImageUrl) {
     return (
@@ -77,7 +95,7 @@ export function StepCard({ state, elapsed, onVerify }: Props) {
         {step?.referenceImageUrl ? <div class="hud__hint">← swipe to view reference</div> : null}
       </div>
 
-      <div class="hud__bottom">{bottom(state, onVerify)}</div>
+      <div class="hud__bottom">{bottom(state, onVerify, onPhoto)}</div>
       <div class="hud__edge" />
     </section>
   );

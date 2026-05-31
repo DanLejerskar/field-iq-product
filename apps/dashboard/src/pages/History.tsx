@@ -1,15 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { ApiClient } from '../api/client';
+import { apiHost } from '../api';
+import { AUTH_JWT_KEY } from '../auth/auth';
 import { MOCK_MODE } from '../mockMode';
 import { go } from '../router';
 import { useDemoSnapshot } from '../state/useDemoSnapshot';
 import type { SessionRow, SessionStatus } from '../api/types';
 
-const api = new ApiClient(
-  import.meta.env.VITE_API_HOST ?? 'http://localhost:3000',
-  () => localStorage.getItem('jwt') ?? undefined,
-);
+const api = new ApiClient(apiHost, () => localStorage.getItem(AUTH_JWT_KEY) ?? undefined);
 
 const STATUSES: Array<'all' | SessionStatus> = [
   'all',
