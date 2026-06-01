@@ -1,0 +1,115 @@
+name: railway-verifier-deploy
+
+# Phase 2E — auto-deploy + reconcile the Railway verifier service.
+#
+# Triggers:
+#   - workflow_dispatch: the canonical path; runs from the Actions tab or `gh`.
+#   - push: re-triggers automatically when this file or the reconcile script is
+#     edited. Used by Claude Code from its sandbox (which can't reach Railway
+#     directly and doesn't have `gh`) — pushing a one-line bump to either file
+#     is the dispatch substitute.
+#
+# Requires repo secret `RAILWAY_TOKEN`. The token never appears in logs;
+# variable values are redacted to `(len=N, prefix="abcdefgh", suffix="wxyz")`
+# matching the Phase 2C boot env audit format.
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_id:
+        description: Railway project ID
+        required: true
+        default: fe454816-e932-40ca-b4d4-12f963dff7cd
+      verifier_service_name:
+        description: Verifier service name (exact match)
+        required: true
+        default: field-iq-product
+      backend_service_name:
+        description: Backend service name (exact match)
+        required: true
+        default: '@field-iq/backend'
+      flip_backend_to_real_verifier:
+        description: Set USE_MOCK_VERIFIER=false on the backend after the verifier comes up
+        type: boolean
+        default: true
+  push:
+    paths:
+      - .github/workflows/railway-verifier-deploy.yml
+      - .github/scripts/railway-verifier-reconcile.sh
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: railway-verifier-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      PROJECT_ID: ${{ inputs.project_id || 'fe454816-e932-40ca-b4d4-12f963dff7cd' }}
+      VERIFIER_NAME: ${{ inputs.verifier_service_name || 'field-iq-product' }}
+      BACKEND_NAME: ${{ inputs.backend_service_name || '@field-iq/backend' }}
+      FLIP_BACKEND: ${{ inputs.flip_backend_to_real_verifier && 'true' || (github.event_name == 'push' && 'true' || 'false') }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check RAILWAY_TOKEN secret is set
+        run: |
+          if [ -z "${RAILWAY_TOKEN}" ]; then
+            echo "::error::RAILWAY_TOKEN secret missing. Add it in Settings → Secrets and variables → Actions → New repository secret."
+            exit 1
+          fi
+
+      - name: Reconcile + redeploy verifier
+        run: bash .github/scripts/railway-verifier-reconcile.sh 2>&1 | tee result.txt
+
+      - name: Upload result artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: railway-result-${{ github.run_number }}
+          path: result.txt
+          if-no-files-found: warn
+
+      - name: Step summary
+        if: always()
+        run: |
+          {
+            echo "## Railway verifier deploy — run #${{ github.run_number }}"
+            echo
+            echo "- project: \`$PROJECT_ID\`"
+            echo "- verifier: \`$VERIFIER_NAME\`"
+            echo "- backend:  \`$BACKEND_NAME\`"
+            echo "- flip backend USE_MOCK_VERIFIER=false: \`$FLIP_BACKEND\`"
+            echo
+            echo '```'
+            sed 's/`/\\`/g' result.txt 2>/dev/null || echo '(no result.txt)'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment on associated PR (push-triggered runs)
+        if: always() && github.event_name == 'push'
+        run: |
+          set -euo pipefail
+          branch="${GITHUB_REF_NAME}"
+          pr_number=$(gh pr list --head "$branch" --json number --jq '.[0].number' || echo "")
+          if [ -z "$pr_number" ]; then
+            echo "No open PR for branch $branch — skipping comment"
+            exit 0
+          fi
+          {
+            echo "### Railway verifier deploy — run [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+            echo
+            echo "status: **${{ job.status }}**"
+            echo
+            echo '```'
+            sed 's/`/\\`/g' result.txt | tail -c 60000
+            echo '```'
+          } > /tmp/pr-comment.md
+          gh pr comment "$pr_number" -F /tmp/pr-comment.md
