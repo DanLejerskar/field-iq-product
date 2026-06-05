@@ -1,0 +1,326 @@
+/**
+ * DAC #811 LOTO reference manifest.
+ *
+ * Source of truth for the in-process mock provider. The same data is also
+ * exported as `assets/dac811/manifest.json` so the backend can serve it
+ * statically; `manifest.test.ts` enforces deep-equality between the two so
+ * they can't drift.
+ *
+ * URL paths are written as `/assets/dac811/<file>` — relative to whatever
+ * mount point the consuming app exposes the package's `assets/` directory
+ * at. (Backend: a `fastify-static` mount; dashboard: a Vite asset import.)
+ */
+import type { Reference, SceneManifest } from './types.js';
+
+export interface ManifestEntry {
+  procedureId: string;
+  stepNumber: number;
+  title: string;
+  glasses: Pick<Reference, 'kind' | 'url' | 'durationMs' | 'captionVoice'>;
+  phone?: Pick<Reference, 'kind' | 'url' | 'durationMs' | 'captionVoice' | 'sceneManifest'>;
+  dashboard?: Pick<Reference, 'kind' | 'url' | 'captionVoice'>;
+}
+
+// ── 3D scene manifests — inline so they ship with the package's TS bundle.
+//    Deep-equal copies live at `assets/dac811/<id>.scene.json` for static serving.
+
+const SCENE_STEP03_ENERGY_SOURCES: SceneManifest = {
+  sceneId: 'dac811-step03-energy-sources',
+  primitive: 'panel',
+  camera: { position: [3.5, 2.5, 5.0], target: [0, 0, 0], fov: 50 },
+  components: [
+    {
+      id: 'panel-base',
+      label: 'DAC #811 trainer baseplate',
+      geometry: 'box',
+      transform: { position: [0, -0.9, 0], scale: [3.0, 0.1, 1.6] },
+      material: { color: '#3A4763', metalness: 0.4, roughness: 0.6 },
+    },
+    {
+      id: 'disconnect-enclosure',
+      label: 'Fused disconnect box',
+      geometry: 'box',
+      transform: { position: [-1.0, 0.2, 0], scale: [0.9, 1.4, 0.4] },
+      material: { color: '#808080', metalness: 0.7, roughness: 0.3 },
+      state: 'closed',
+    },
+    {
+      id: 'starter-enclosure',
+      label: 'Local manual starter',
+      geometry: 'box',
+      transform: { position: [0, 0.05, 0], scale: [0.5, 0.8, 0.35] },
+      material: { color: '#6B7689', metalness: 0.5, roughness: 0.4 },
+      state: 'run',
+    },
+    {
+      id: 'valve-handle',
+      label: 'Three-way ball valve handle',
+      geometry: 'cylinder',
+      transform: {
+        position: [1.1, 0.1, 0.15],
+        rotation: [0, 0, 1.5707963],
+        scale: [0.06, 0.5, 0.06],
+      },
+      material: { color: '#B85042' },
+      state: 'open',
+    },
+  ],
+  annotations: [
+    {
+      componentId: 'disconnect-enclosure',
+      text: 'Electrical isolation point',
+      offset: [0, 0.9, 0],
+    },
+    { componentId: 'starter-enclosure', text: 'Local stop / start', offset: [0, 0.6, 0] },
+    { componentId: 'valve-handle', text: 'Process isolation', offset: [0.4, 0.2, 0] },
+  ],
+};
+
+const SCENE_STEP05_DISCONNECT: SceneManifest = {
+  sceneId: 'dac811-step05-disconnect',
+  primitive: 'disconnect',
+  camera: { position: [2.0, 1.5, 3.0], target: [0, 0, 0], fov: 50 },
+  components: [
+    {
+      id: 'disconnect-enclosure',
+      label: 'Fused disconnect box',
+      geometry: 'box',
+      transform: { position: [0, 0, 0], scale: [1.0, 1.5, 0.4] },
+      material: { color: '#808080', metalness: 0.7, roughness: 0.3 },
+    },
+    {
+      id: 'lockout-tab',
+      label: 'Lockout tab',
+      geometry: 'box',
+      transform: { position: [0.55, -0.55, 0.21], scale: [0.06, 0.18, 0.04] },
+      material: { color: '#404040', metalness: 0.6, roughness: 0.4 },
+    },
+    {
+      id: 'disconnect-handle',
+      label: 'Disconnect handle',
+      geometry: 'cylinder',
+      transform: { position: [0.4, -0.6, 0.25], rotation: [0, 0, 0], scale: [0.05, 0.4, 0.05] },
+      material: { color: '#B85042' },
+      state: 'open',
+    },
+  ],
+  annotations: [
+    {
+      componentId: 'disconnect-handle',
+      text: 'Handle in OPEN/DOWN position',
+      offset: [0.3, 0, 0],
+    },
+  ],
+};
+
+const SCENE_STEP08_VALVE: SceneManifest = {
+  sceneId: 'dac811-step08-valve',
+  primitive: 'valve',
+  camera: { position: [1.6, 1.2, 2.2], target: [0, 0, 0], fov: 50 },
+  components: [
+    {
+      id: 'pipe',
+      label: 'Process pipe',
+      geometry: 'cylinder',
+      transform: { position: [0, 0, 0], rotation: [0, 0, 1.5707963], scale: [0.15, 1.6, 0.15] },
+      material: { color: '#A0A0A0', metalness: 0.8, roughness: 0.25 },
+    },
+    {
+      id: 'valve-body',
+      label: 'Ball valve body',
+      geometry: 'sphere',
+      transform: { position: [0, 0, 0], scale: [0.25, 0.25, 0.25] },
+      material: { color: '#707070', metalness: 0.8, roughness: 0.3 },
+    },
+    {
+      id: 'valve-handle',
+      label: 'Valve handle',
+      geometry: 'cylinder',
+      transform: { position: [0, 0.35, 0], rotation: [0, 0, 0], scale: [0.04, 0.45, 0.04] },
+      material: { color: '#B85042' },
+      state: 'closed',
+    },
+  ],
+  annotations: [
+    {
+      componentId: 'valve-handle',
+      text: 'Handle perpendicular to pipe = CLOSED',
+      offset: [0.25, 0.1, 0],
+    },
+  ],
+};
+
+export const DAC811_SCENES = {
+  step03: SCENE_STEP03_ENERGY_SOURCES,
+  step05: SCENE_STEP05_DISCONNECT,
+  step08: SCENE_STEP08_VALVE,
+} as const;
+
+// ── Per-step manifest. 10 entries; static SVG for static steps, animated SVG
+//    (kind:'gif' + durationMs) for steps 5/7/8 where motion matters.
+
+export const DAC811_MANIFEST: readonly ManifestEntry[] = [
+  {
+    procedureId: 'dac811-loto',
+    stepNumber: 1,
+    title: 'DON PPE',
+    glasses: {
+      kind: 'image',
+      url: '/assets/dac811/step01_ppe.svg',
+      captionVoice: 'Don personal protective equipment — safety glasses and gloves.',
+    },
+    dashboard: {
+      kind: 'image',
+      url: '/assets/dac811/step01_ppe.svg',
+      captionVoice: 'Worker dons gloves and safety glasses.',
+    },
+  },
+  {
+    procedureId: 'dac811-loto',
+    stepNumber: 2,
+    title: 'IDENTIFY EQUIPMENT',
+    glasses: {
+      kind: 'image',
+      url: '/assets/dac811/step02_qr.svg',
+      captionVoice: 'Scan the QR code on the trainer baseplate.',
+    },
+    dashboard: {
+      kind: 'image',
+      url: '/assets/dac811/step02_qr.svg',
+    },
+  },
+  {
+    procedureId: 'dac811-loto',
+    stepNumber: 3,
+    title: 'IDENTIFY ENERGY SOURCES',
+    glasses: {
+      kind: 'image',
+      url: '/assets/dac811/step03_energy_sources.svg',
+      captionVoice:
+        'Identify the disconnect, starter, and ball valves. Capture all three in one frame.',
+    },
+    phone: {
+      kind: 'scene3d',
+      url: '/assets/dac811/step03_energy_sources.scene.json',
+      captionVoice: 'Rotate the panel to identify each energy isolation point.',
+      sceneManifest: SCENE_STEP03_ENERGY_SOURCES,
+    },
+    dashboard: {
+      kind: 'image',
+      url: '/assets/dac811/step03_energy_sources.svg',
+    },
+  },
+  {
+    procedureId: 'dac811-loto',
+    stepNumber: 4,
+    title: 'STOP THE EQUIPMENT',
+    glasses: {
+      kind: 'image',
+      url: '/assets/dac811/step04_stop.svg',
+      captionVoice: 'Press STOP on the local manual starter.',
+    },
+    dashboard: {
+      kind: 'image',
+      url: '/assets/dac811/step04_stop.svg',
+    },
+  },
+  {
+    procedureId: 'dac811-loto',
+    stepNumber: 5,
+    title: 'OPEN DISCONNECT',
+    glasses: {
+      kind: 'gif',
+      url: '/assets/dac811/step05_disconnect.svg',
+      durationMs: 1500,
+      captionVoice: 'Rotate the disconnect handle down to the OPEN position.',
+    },
+    phone: {
+      kind: 'scene3d',
+      url: '/assets/dac811/step05_disconnect.scene.json',
+      captionVoice: 'Inspect the disconnect; confirm handle is down.',
+      sceneManifest: SCENE_STEP05_DISCONNECT,
+    },
+    dashboard: {
+      kind: 'image',
+      url: '/assets/dac811/step05_disconnect.svg',
+    },
+  },
+  {
+    procedureId: 'dac811-loto',
+    stepNumber: 6,
+    title: 'APPLY HASP',
+    glasses: {
+      kind: 'image',
+      url: '/assets/dac811/step06_hasp.svg',
+      captionVoice: 'Install a lockout hasp through the disconnect lockout point.',
+    },
+    dashboard: {
+      kind: 'image',
+      url: '/assets/dac811/step06_hasp.svg',
+    },
+  },
+  {
+    procedureId: 'dac811-loto',
+    stepNumber: 7,
+    title: 'APPLY PADLOCK',
+    glasses: {
+      kind: 'gif',
+      url: '/assets/dac811/step07_padlock.svg',
+      durationMs: 1000,
+      captionVoice: 'Engage your personal padlock through the hasp until it clicks closed.',
+    },
+    dashboard: {
+      kind: 'image',
+      url: '/assets/dac811/step07_padlock.svg',
+    },
+  },
+  {
+    procedureId: 'dac811-loto',
+    stepNumber: 8,
+    title: 'CLOSE BALL VALVE',
+    glasses: {
+      kind: 'gif',
+      url: '/assets/dac811/step08_valve.svg',
+      durationMs: 1500,
+      captionVoice: 'Rotate the ball valve handle ninety degrees, perpendicular to the pipe.',
+    },
+    phone: {
+      kind: 'scene3d',
+      url: '/assets/dac811/step08_valve.scene.json',
+      captionVoice: 'Confirm valve handle perpendicular to pipe.',
+      sceneManifest: SCENE_STEP08_VALVE,
+    },
+    dashboard: {
+      kind: 'image',
+      url: '/assets/dac811/step08_valve.svg',
+    },
+  },
+  {
+    procedureId: 'dac811-loto',
+    stepNumber: 9,
+    title: 'ATTACH LOTO TAG',
+    glasses: {
+      kind: 'image',
+      url: '/assets/dac811/step09_tag.svg',
+      captionVoice: 'Fill in the LOTO tag and attach it warning-side-out.',
+    },
+    dashboard: {
+      kind: 'image',
+      url: '/assets/dac811/step09_tag.svg',
+    },
+  },
+  {
+    procedureId: 'dac811-loto',
+    stepNumber: 10,
+    title: 'VERIFY ZERO ENERGY',
+    glasses: {
+      kind: 'image',
+      url: '/assets/dac811/step10_test.svg',
+      captionVoice: 'Press START. The equipment must NOT activate.',
+    },
+    dashboard: {
+      kind: 'image',
+      url: '/assets/dac811/step10_test.svg',
+    },
+  },
+] as const;

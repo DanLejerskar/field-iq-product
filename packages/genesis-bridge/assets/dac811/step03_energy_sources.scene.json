@@ -1,0 +1,86 @@
+{
+  "sceneId": "dac811-step03-energy-sources",
+  "primitive": "panel",
+  "camera": {
+    "position": [3.5, 2.5, 5],
+    "target": [0, 0, 0],
+    "fov": 50
+  },
+  "components": [
+    {
+      "id": "panel-base",
+      "label": "DAC #811 trainer baseplate",
+      "geometry": "box",
+      "transform": {
+        "position": [0, -0.9, 0],
+        "scale": [3, 0.1, 1.6]
+      },
+      "material": {
+        "color": "#3A4763",
+        "metalness": 0.4,
+        "roughness": 0.6
+      }
+    },
+    {
+      "id": "disconnect-enclosure",
+      "label": "Fused disconnect box",
+      "geometry": "box",
+      "transform": {
+        "position": [-1, 0.2, 0],
+        "scale": [0.9, 1.4, 0.4]
+      },
+      "material": {
+        "color": "#808080",
+        "metalness": 0.7,
+        "roughness": 0.3
+      },
+      "state": "closed"
+    },
+    {
+      "id": "starter-enclosure",
+      "label": "Local manual starter",
+      "geometry": "box",
+      "transform": {
+        "position": [0, 0.05, 0],
+        "scale": [0.5, 0.8, 0.35]
+      },
+      "material": {
+        "color": "#6B7689",
+        "metalness": 0.5,
+        "roughness": 0.4
+      },
+      "state": "run"
+    },
+    {
+      "id": "valve-handle",
+      "label": "Three-way ball valve handle",
+      "geometry": "cylinder",
+      "transform": {
+        "position": [1.1, 0.1, 0.15],
+        "rotation": [0, 0, 1.5707963],
+        "scale": [0.06, 0.5, 0.06]
+      },
+      "material": {
+        "color": "#B85042"
+      },
+      "state": "open"
+    }
+  ],
+  "annotations": [
+    {
+      "componentId": "disconnect-enclosure",
+      "text": "Electrical isolation point",
+      "offset": [0, 0.9, 0]
+    },
+    {
+      "componentId": "starter-enclosure",
+      "text": "Local stop / start",
+      "offset": [0, 0.6, 0]
+    },
+    {
+      "componentId": "valve-handle",
+      "text": "Process isolation",
+      "offset": [0.4, 0.2, 0]
+    }
+  ]
+}
