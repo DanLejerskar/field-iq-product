@@ -1,0 +1,45 @@
+{
+  "name": "@field-iq/equipment-recognizer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Photo → equipment identification for Field IQ. Two paths: Claude Vision against a catalog; QR-code fallback. Returns a Recognition record the backend uses to pick the right procedure.",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "jsqr": "^1.4.0",
+    "pngjs": "^7.0.0"
+  },
+  "peerDependencies": {
+    "@anthropic-ai/sdk": ">=0.40"
+  },
+  "peerDependenciesMeta": {
+    "@anthropic-ai/sdk": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "^0.40.0",
+    "@types/pngjs": "^6.0.5",
+    "@types/qrcode": "^1.5.5",
+    "qrcode": "^1.5.4",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
+  }
+}
