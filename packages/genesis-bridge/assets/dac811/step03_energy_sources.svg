@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600" role="img" aria-label="Step 3: Identify energy sources">
+  <rect width="800" height="600" fill="#1E2761"/>
+  <rect x="20" y="20" width="760" height="560" fill="none" stroke="#CADCFC" stroke-width="2" rx="8"/>
+  <text x="50" y="90" font-family="Inter, sans-serif" font-size="42" font-weight="800" fill="#CADCFC" letter-spacing="4">STEP 3</text>
+  <text x="50" y="540" font-family="Inter, sans-serif" font-size="36" font-weight="700" fill="#F5F1EA" letter-spacing="2">IDENTIFY ENERGY SOURCES</text>
+  <text x="50" y="580" font-family="Inter, monospace" font-size="11" font-weight="500" fill="#6B7689" letter-spacing="1.5">REFERENCE · DAC #811 · GENESIS-RENDERED</text>
+
+  <!-- Baseplate -->
+  <rect x="80" y="290" width="640" height="190" fill="#3A4763" stroke="#CADCFC" stroke-width="2" rx="4"/>
+
+  <!-- Disconnect box (upper left) -->
+  <g transform="translate(140 180)">
+    <rect width="140" height="200" fill="#808080" stroke="#CADCFC" stroke-width="3" rx="4"/>
+    <rect x="20" y="20" width="100" height="120" fill="#6B7689" stroke="#404040" stroke-width="2"/>
+    <text x="70" y="55" font-family="Inter, monospace" font-size="11" fill="#F5F1EA" text-anchor="middle">DISCONNECT</text>
+    <!-- handle in OFF position (down) -->
+    <rect x="60" y="155" width="20" height="35" fill="#B85042" stroke="#CADCFC" stroke-width="2" rx="3"/>
+    <circle cx="70" cy="150" r="6" fill="#CADCFC"/>
+  </g>
+  <text x="210" y="170" font-family="Inter, sans-serif" font-size="12" fill="#CADCFC" text-anchor="middle">① Electrical</text>
+
+  <!-- Manual starter (middle) -->
+  <g transform="translate(340 230)">
+    <rect width="100" height="140" fill="#6B7689" stroke="#CADCFC" stroke-width="3" rx="4"/>
+    <text x="50" y="30" font-family="Inter, monospace" font-size="11" fill="#F5F1EA" text-anchor="middle">STARTER</text>
+    <circle cx="35" cy="70" r="14" fill="#10B981" stroke="#F5F1EA" stroke-width="2"/>
+    <text x="35" y="74" font-family="Inter, sans-serif" font-size="9" fill="#0B1424" text-anchor="middle">START</text>
+    <circle cx="70" cy="70" r="14" fill="#E0625C" stroke="#F5F1EA" stroke-width="2"/>
+    <text x="70" y="74" font-family="Inter, sans-serif" font-size="10" fill="#F5F1EA" text-anchor="middle">STOP</text>
+  </g>
+  <text x="390" y="220" font-family="Inter, sans-serif" font-size="12" fill="#CADCFC" text-anchor="middle">② Local control</text>
+
+  <!-- Three-way ball valve (right) -->
+  <g transform="translate(540 290)">
+    <rect width="180" height="40" y="20" fill="#A0A0A0" stroke="#CADCFC" stroke-width="2"/>
+    <circle cx="90" cy="40" r="22" fill="#707070" stroke="#CADCFC" stroke-width="2"/>
+    <rect x="80" y="-10" width="20" height="50" fill="#B85042" stroke="#CADCFC" stroke-width="2" rx="3"/>
+  </g>
+  <text x="630" y="280" font-family="Inter, sans-serif" font-size="12" fill="#CADCFC" text-anchor="middle">③ Process fluid</text>
+
+  <text x="400" y="510" font-family="Inter, sans-serif" font-size="16" fill="#A6AFC2" text-anchor="middle">Capture all three isolation points in one frame</text>
+</svg>

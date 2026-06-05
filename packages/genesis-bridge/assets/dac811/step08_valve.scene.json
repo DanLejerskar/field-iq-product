@@ -1,0 +1,61 @@
+{
+  "sceneId": "dac811-step08-valve",
+  "primitive": "valve",
+  "camera": {
+    "position": [1.6, 1.2, 2.2],
+    "target": [0, 0, 0],
+    "fov": 50
+  },
+  "components": [
+    {
+      "id": "pipe",
+      "label": "Process pipe",
+      "geometry": "cylinder",
+      "transform": {
+        "position": [0, 0, 0],
+        "rotation": [0, 0, 1.5707963],
+        "scale": [0.15, 1.6, 0.15]
+      },
+      "material": {
+        "color": "#A0A0A0",
+        "metalness": 0.8,
+        "roughness": 0.25
+      }
+    },
+    {
+      "id": "valve-body",
+      "label": "Ball valve body",
+      "geometry": "sphere",
+      "transform": {
+        "position": [0, 0, 0],
+        "scale": [0.25, 0.25, 0.25]
+      },
+      "material": {
+        "color": "#707070",
+        "metalness": 0.8,
+        "roughness": 0.3
+      }
+    },
+    {
+      "id": "valve-handle",
+      "label": "Valve handle",
+      "geometry": "cylinder",
+      "transform": {
+        "position": [0, 0.35, 0],
+        "rotation": [0, 0, 0],
+        "scale": [0.04, 0.45, 0.04]
+      },
+      "material": {
+        "color": "#B85042"
+      },
+      "state": "closed"
+    }
+  ],
+  "annotations": [
+    {
+      "componentId": "valve-handle",
+      "text": "Handle perpendicular to pipe = CLOSED",
+      "offset": [0.25, 0.1, 0]
+    }
+  ]
+}

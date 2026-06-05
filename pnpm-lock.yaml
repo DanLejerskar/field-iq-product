@@ -156,6 +156,15 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)(lightningcss@1.27.0)(terser@5.48.0)
 
+  packages/genesis-bridge:
+    devDependencies:
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)(lightningcss@1.27.0)(terser@5.48.0)
+
   packages/mock-demo:
     devDependencies:
       typescript:

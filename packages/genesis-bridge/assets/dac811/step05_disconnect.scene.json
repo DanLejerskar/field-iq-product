@@ -1,0 +1,60 @@
+{
+  "sceneId": "dac811-step05-disconnect",
+  "primitive": "disconnect",
+  "camera": {
+    "position": [2, 1.5, 3],
+    "target": [0, 0, 0],
+    "fov": 50
+  },
+  "components": [
+    {
+      "id": "disconnect-enclosure",
+      "label": "Fused disconnect box",
+      "geometry": "box",
+      "transform": {
+        "position": [0, 0, 0],
+        "scale": [1, 1.5, 0.4]
+      },
+      "material": {
+        "color": "#808080",
+        "metalness": 0.7,
+        "roughness": 0.3
+      }
+    },
+    {
+      "id": "lockout-tab",
+      "label": "Lockout tab",
+      "geometry": "box",
+      "transform": {
+        "position": [0.55, -0.55, 0.21],
+        "scale": [0.06, 0.18, 0.04]
+      },
+      "material": {
+        "color": "#404040",
+        "metalness": 0.6,
+        "roughness": 0.4
+      }
+    },
+    {
+      "id": "disconnect-handle",
+      "label": "Disconnect handle",
+      "geometry": "cylinder",
+      "transform": {
+        "position": [0.4, -0.6, 0.25],
+        "rotation": [0, 0, 0],
+        "scale": [0.05, 0.4, 0.05]
+      },
+      "material": {
+        "color": "#B85042"
+      },
+      "state": "open"
+    }
+  ],
+  "annotations": [
+    {
+      "componentId": "disconnect-handle",
+      "text": "Handle in OPEN/DOWN position",
+      "offset": [0.3, 0, 0]
+    }
+  ]
+}
