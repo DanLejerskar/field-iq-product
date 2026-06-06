@@ -7,6 +7,7 @@ import { Admin } from './pages/Admin';
 import { History } from './pages/History';
 import { LiveSessions } from './pages/LiveSessions';
 import { SessionDetail } from './pages/SessionDetail';
+import { SessionReplayPage } from './pages/SessionReplayPage';
 import { useRoute } from './router';
 import { useMockSync } from './state/useMockSync';
 
@@ -22,6 +23,8 @@ function CurrentRoute() {
           <SessionDetail sessionId={route.id} />
         </PageShell>
       );
+    case 'replay':
+      return <SessionReplayPage sessionId={route.id} />;
     case 'history':
       return (
         <PageShell>

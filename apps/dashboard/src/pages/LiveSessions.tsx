@@ -164,6 +164,23 @@ function Row({ row, traineeName }: { row: SessionRow; traineeName: string }) {
         <span className={`session-row__status session-row__status--${row.status}`}>
           {row.status}
         </span>
+        <a
+          href={`#/sessions/${row.id}/replay`}
+          data-testid={`session-row-replay-${row.id}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            go({ name: 'replay', id: row.id });
+          }}
+          style={{
+            marginLeft: 'auto',
+            color: 'var(--field)',
+            textDecoration: 'none',
+            fontSize: 12,
+          }}
+        >
+          Replay ▸
+        </a>
       </div>
     </a>
   );
