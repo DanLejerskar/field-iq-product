@@ -29,6 +29,13 @@
       "when": 1780776901803,
       "tag": "0003_certificates",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1780778572903,
+      "tag": "0004_magic_links",
+      "breakpoints": true
     }
   ]
 }

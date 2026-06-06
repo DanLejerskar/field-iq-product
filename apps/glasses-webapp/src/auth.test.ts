@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { decodeJwtPayload, isJwtExpired, parseTokenFromHash } from './auth.js';
+import {
+  decodeJwtPayload,
+  isJwtExpired,
+  parseSessionFromHash,
+  parseTokenFromHash,
+} from './auth.js';
 
 function makeJwt(payload: Record<string, unknown>): string {
   const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
@@ -17,6 +22,21 @@ describe('parseTokenFromHash', () => {
   });
   it('returns null when token is empty', () => {
     expect(parseTokenFromHash('#/auth/verify?token=')).toBeNull();
+  });
+  it('returns null when only session is present', () => {
+    expect(parseTokenFromHash('#/auth/verify?session=abc')).toBeNull();
+  });
+});
+
+describe('parseSessionFromHash', () => {
+  it('extracts session from #/auth/verify?session=jwt', () => {
+    expect(parseSessionFromHash('#/auth/verify?session=eyJ.x.y')).toBe('eyJ.x.y');
+  });
+  it('returns null on the legacy token URL', () => {
+    expect(parseSessionFromHash('#/auth/verify?token=abc')).toBeNull();
+  });
+  it('returns null when session is empty', () => {
+    expect(parseSessionFromHash('#/auth/verify?session=')).toBeNull();
   });
 });
 

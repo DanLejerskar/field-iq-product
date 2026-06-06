@@ -220,6 +220,23 @@ export const certificates = pgTable('certificates', {
   storageKey: text('storage_key').notNull(),
 });
 
+// --- Magic links ---
+// One row per issued sign-in link. The clickable-email path stores the random
+// UUID token here so we can mark it used_at exactly once and surface
+// IP / user-agent for audit. Stateless HMAC tokens (auth/tokens.ts) still
+// back the gated paste-the-token demo path; this table backs the production
+// email-click flow.
+export const magicLinks = pgTable('magic_links', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  email: text('email').notNull(),
+  token: uuid('token').notNull().unique(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 // --- KPI rollups ---
 export const sessionKpis = pgTable('session_kpis', {
   sessionId: uuid('session_id')

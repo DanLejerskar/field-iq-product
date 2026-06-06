@@ -121,8 +121,24 @@ export function parseTokenFromHash(hash: string): string | null {
   return token && token.length > 0 ? token : null;
 }
 
+/**
+ * Extract `session=<jwt>` from `#/auth/verify?session=…`. This is the
+ * post-redirect path: the backend has already minted a JWT for us and
+ * sent us here. Returns null when the hash isn't an auth verify URL or
+ * the param is missing.
+ */
+export function parseSessionFromHash(hash: string): string | null {
+  const trimmed = hash.replace(/^#/, '');
+  if (!trimmed.startsWith('/auth/verify')) return null;
+  const qIdx = trimmed.indexOf('?');
+  if (qIdx === -1) return null;
+  const params = new URLSearchParams(trimmed.slice(qIdx + 1));
+  const session = params.get('session');
+  return session && session.length > 0 ? session : null;
+}
+
 export async function requestMagicLink(apiHost: string, email: string): Promise<void> {
-  const res = await fetch(`${apiHost}/api/auth/magic-link/request`, {
+  const res = await fetch(`${apiHost}/api/auth/request-link`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
@@ -131,6 +147,44 @@ export async function requestMagicLink(apiHost: string, email: string): Promise<
     const problem = (await res.json().catch(() => ({}))) as { title?: string };
     throw new Error(problem.title ?? `Request failed (${res.status})`);
   }
+}
+
+export interface AuthConfig {
+  demoAuthEnabled: boolean;
+}
+
+export async function fetchAuthConfig(apiHost: string): Promise<AuthConfig> {
+  const res = await fetch(`${apiHost}/api/auth/config`);
+  if (!res.ok) return { demoAuthEnabled: false };
+  return (await res.json()) as AuthConfig;
+}
+
+export interface AuthMeResponse {
+  user: AuthUser;
+  org: AuthOrg;
+}
+
+export async function fetchAuthMe(apiHost: string, jwt: string): Promise<AuthMeResponse> {
+  const res = await fetch(`${apiHost}/api/auth/me`, {
+    headers: { Authorization: `Bearer ${jwt}` },
+  });
+  if (!res.ok) {
+    const problem = (await res.json().catch(() => ({}))) as { title?: string };
+    throw new Error(problem.title ?? `Fetch /api/auth/me failed (${res.status})`);
+  }
+  return (await res.json()) as AuthMeResponse;
+}
+
+/**
+ * Hydrate a freshly-minted JWT (delivered via the email-click redirect)
+ * into a full AuthPayload by asking the backend who we are.
+ */
+export async function hydrateAuthFromJwt(
+  apiHost: string,
+  jwt: string,
+): Promise<AuthPayload> {
+  const { user, org } = await fetchAuthMe(apiHost, jwt);
+  return { jwt, user, org };
 }
 
 export async function verifyMagicLink(apiHost: string, token: string): Promise<AuthPayload> {

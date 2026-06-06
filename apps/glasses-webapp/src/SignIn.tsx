@@ -1,14 +1,24 @@
 /**
- * Compact magic-link sign-in card for the glasses-webapp.
+ * Glasses-webapp magic-link sign-in card.
  *
- * The Meta companion app's URL contract (token in the fragment) remains the
- * primary auth path. This component renders as a fallback when the user lands
- * on the Vercel URL directly without a token, so manual browser testing
- * doesn't require the companion app.
+ * Production flow: the user signs in via the Meta companion app and lands
+ * here with `#/auth/verify?session=<jwt>` already on the URL — handled by
+ * the app shell, not this component. This form exists for browser-only
+ * testing without a paired device: email → "check your inbox" → click the
+ * emailed button → backend 302s here with the JWT.
+ *
+ * The paste-token form is rendered only when the backend reports
+ * `demoAuthEnabled=true` via /api/auth/config.
  */
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
-import { requestMagicLink, storeAuth, verifyMagicLink, type AuthPayload } from './auth.js';
+import {
+  fetchAuthConfig,
+  requestMagicLink,
+  storeAuth,
+  verifyMagicLink,
+  type AuthPayload,
+} from './auth.js';
 
 const DEFAULT_EMAIL = 'maya.wu@eonreality.com';
 
@@ -22,6 +32,21 @@ export function SignIn({ apiHost, onSignedIn }: Props): JSX.Element {
   const [token, setToken] = useState('');
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'verifying'>('idle');
   const [error, setError] = useState<string | undefined>();
+  const [demoEnabled, setDemoEnabled] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchAuthConfig(apiHost)
+      .then((cfg) => {
+        if (!cancelled) setDemoEnabled(cfg.demoAuthEnabled);
+      })
+      .catch(() => {
+        /* probe-failure is non-fatal */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [apiHost]);
 
   async function sendLink(e: JSX.TargetedEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
@@ -69,61 +94,76 @@ export function SignIn({ apiHost, onSignedIn }: Props): JSX.Element {
           padding: 24,
           color: 'var(--ink)',
         }}
+        data-testid="signin-card"
       >
-        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Sign in (browser testing)</h2>
+        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Sign in to Field IQ</h2>
         <p style={{ fontSize: 12, color: 'var(--ink-dim)', marginTop: 6 }}>
-          Production sign-in is via the Meta companion app. Use the form below for browser testing
-          without a paired device.
+          We'll email you a sign-in link. It expires in 15 minutes.
         </p>
 
-        <form onSubmit={sendLink} style={{ marginTop: 16 }}>
-          <label style={labelStyle}>Email</label>
-          <input
-            type="email"
-            value={email}
-            required
-            onInput={(e) => setEmail((e.currentTarget as HTMLInputElement).value)}
-            disabled={status === 'sending' || status === 'verifying'}
-            style={inputStyle}
-          />
-          <button
-            type="submit"
-            disabled={status === 'sending' || status === 'verifying' || email.trim().length === 0}
-            style={primaryButton}
-          >
-            {status === 'sending' ? 'Sending…' : 'Send magic link'}
-          </button>
-        </form>
-
         {status === 'sent' ? (
-          <div
-            style={{
-              ...noticeStyle,
-              borderColor: 'var(--accent-verified)',
-              color: 'var(--accent-verified)',
-            }}
-          >
-            Check Railway logs and paste the token below.
+          <div data-testid="signin-sent" style={{ marginTop: 16 }}>
+            <div
+              style={{
+                ...noticeStyle,
+                borderColor: 'var(--accent-verified)',
+                color: 'var(--accent-verified)',
+              }}
+            >
+              Check your inbox. We sent a sign-in link to <strong>{email}</strong>.
+            </div>
+            <button
+              type="button"
+              onClick={() => setStatus('idle')}
+              style={{ ...secondaryButton, marginTop: 12 }}
+            >
+              Use a different email
+            </button>
           </div>
-        ) : null}
+        ) : (
+          <form onSubmit={sendLink} style={{ marginTop: 16 }}>
+            <label style={labelStyle}>Email</label>
+            <input
+              type="email"
+              value={email}
+              required
+              onInput={(e) => setEmail((e.currentTarget as HTMLInputElement).value)}
+              disabled={status === 'sending' || status === 'verifying'}
+              style={inputStyle}
+              data-testid="signin-email"
+            />
+            <button
+              type="submit"
+              disabled={
+                status === 'sending' || status === 'verifying' || email.trim().length === 0
+              }
+              style={primaryButton}
+              data-testid="signin-submit"
+            >
+              {status === 'sending' ? 'Sending…' : 'Send sign-in link'}
+            </button>
+          </form>
+        )}
 
-        <form onSubmit={signInWithToken} style={{ marginTop: 18 }}>
-          <label style={labelStyle}>Magic-link token</label>
-          <textarea
-            value={token}
-            rows={3}
-            onInput={(e) => setToken((e.currentTarget as HTMLTextAreaElement).value)}
-            placeholder="paste the token from the magic-link URL"
-            style={{ ...inputStyle, fontFamily: 'ui-monospace, monospace', fontSize: 11 }}
-          />
-          <button
-            type="submit"
-            disabled={status === 'verifying' || token.trim().length === 0}
-            style={secondaryButton}
-          >
-            {status === 'verifying' ? 'Verifying…' : 'Sign in with token'}
-          </button>
-        </form>
+        {demoEnabled ? (
+          <form onSubmit={signInWithToken} style={{ marginTop: 18 }} data-testid="signin-demo-form">
+            <label style={labelStyle}>Lab: paste magic-link token</label>
+            <textarea
+              value={token}
+              rows={3}
+              onInput={(e) => setToken((e.currentTarget as HTMLTextAreaElement).value)}
+              placeholder="paste the token from the magic-link URL"
+              style={{ ...inputStyle, fontFamily: 'ui-monospace, monospace', fontSize: 11 }}
+            />
+            <button
+              type="submit"
+              disabled={status === 'verifying' || token.trim().length === 0}
+              style={secondaryButton}
+            >
+              {status === 'verifying' ? 'Verifying…' : 'Sign in with token'}
+            </button>
+          </form>
+        ) : null}
 
         {error ? (
           <div
@@ -132,6 +172,7 @@ export function SignIn({ apiHost, onSignedIn }: Props): JSX.Element {
               borderColor: 'var(--accent-error)',
               color: 'var(--accent-error)',
             }}
+            data-testid="signin-error"
           >
             {error}
           </div>

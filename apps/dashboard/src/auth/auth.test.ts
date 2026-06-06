@@ -7,6 +7,7 @@ import {
   decodeJwtPayload,
   isJwtExpired,
   loadAuth,
+  parseSessionFromHash,
   parseTokenFromHash,
   storeAuth,
 } from './auth';
@@ -34,6 +35,29 @@ describe('parseTokenFromHash', () => {
 
   it('returns null when token is empty', () => {
     expect(parseTokenFromHash('#/auth/verify?token=')).toBeNull();
+  });
+
+  it('returns null when only session is present', () => {
+    expect(parseTokenFromHash('#/auth/verify?session=abc')).toBeNull();
+  });
+});
+
+describe('parseSessionFromHash', () => {
+  it('extracts session from #/auth/verify?session=jwt', () => {
+    expect(parseSessionFromHash('#/auth/verify?session=eyJ.x.y')).toBe('eyJ.x.y');
+  });
+
+  it('returns null on the legacy token URL', () => {
+    expect(parseSessionFromHash('#/auth/verify?token=abc')).toBeNull();
+  });
+
+  it('returns null for unrelated hashes', () => {
+    expect(parseSessionFromHash('#/live')).toBeNull();
+    expect(parseSessionFromHash('')).toBeNull();
+  });
+
+  it('returns null when session= is empty', () => {
+    expect(parseSessionFromHash('#/auth/verify?session=')).toBeNull();
   });
 });
 
