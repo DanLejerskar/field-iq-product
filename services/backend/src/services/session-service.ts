@@ -115,15 +115,26 @@ export async function advanceSession(sessionId: string): Promise<{ currentStepNu
 export async function completeSession(sessionId: string): Promise<void> {
   const session = await getSession(sessionId);
   if (!session) throw notFound('Session not found');
-  completeState(await loadSessionState(sessionId)); // throws if not all verified
-  const durationSeconds = Math.round((Date.now() - session.startedAt.getTime()) / 1000);
+  const state = await loadSessionState(sessionId);
+  completeState(state); // throws if not all verified
+  const endedAt = new Date();
+  const durationSeconds = Math.round((endedAt.getTime() - session.startedAt.getTime()) / 1000);
   await updateSession(sessionId, {
     status: 'completed',
-    completedAt: new Date(),
+    completedAt: endedAt,
     durationSeconds,
   });
   await AuditLogService.append({ sessionId, eventType: 'complete' });
   await emit(sessionId, session.orgId, 'session.completed');
+  // Discriminated terminal event for downstream services (cert-generator).
+  // A step that fell into 'failed' but is later retried-out still completes;
+  // any leftover failed step would have prevented us from reaching this branch
+  // because completeState throws.
+  const finalOutcome = state.steps.some((s) => s.status === 'failed') ? 'fail' : 'pass';
+  await emit(sessionId, session.orgId, 'session.ended', {
+    finalOutcome,
+    endedAt: endedAt.toISOString(),
+  });
 }
 
 export async function abandonSession(sessionId: string, reason: string): Promise<void> {
@@ -131,9 +142,15 @@ export async function abandonSession(sessionId: string, reason: string): Promise
   if (!session) throw notFound('Session not found');
   if (session.status === 'completed') throw conflict('Session already completed');
   abandonState(await loadSessionState(sessionId));
-  await updateSession(sessionId, { status: 'abandoned', completedAt: new Date() });
+  const endedAt = new Date();
+  await updateSession(sessionId, { status: 'abandoned', completedAt: endedAt });
   await AuditLogService.append({ sessionId, eventType: 'abandon', detail: reason });
   await emit(sessionId, session.orgId, 'session.abandoned', { detail: reason });
+  await emit(sessionId, session.orgId, 'session.ended', {
+    finalOutcome: 'incomplete',
+    endedAt: endedAt.toISOString(),
+    detail: reason,
+  });
 }
 
 export async function getProcedureVersion(procedureId: string): Promise<string> {

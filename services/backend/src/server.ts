@@ -15,6 +15,7 @@ import { getRedis } from './services/bus.js';
 import { registerAdminRoutes } from './routes/admin.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerContentRoutes } from './routes/content.js';
+import { registerSessionCertificateRoutes } from './routes/sessionCertificate.js';
 import { registerSessionReplayRoutes } from './routes/sessionReplay.js';
 import { registerSessionRoutes } from './routes/sessions.js';
 import { registerWebSocketGateway } from './ws/gateway.js';
@@ -124,6 +125,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   registerContentRoutes(app);
   registerSessionRoutes(app);
   registerSessionReplayRoutes(app);
+  registerSessionCertificateRoutes(app);
   registerAdminRoutes(app);
 
   if (config.useMockVerifier) {
