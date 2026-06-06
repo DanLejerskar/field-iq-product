@@ -17,7 +17,9 @@ import { useEffect, useReducer, useState } from 'preact/hooks';
 import { getDemoStore, STEPS as DEMO_STEPS } from '@field-iq/mock-demo';
 import {
   clearAuth,
+  hydrateAuthFromJwt,
   loadAuth,
+  parseSessionFromHash,
   parseTokenFromHash,
   storeAuth,
   verifyMagicLink,
@@ -163,14 +165,18 @@ async function uploadPhoto(
 
 type AuthState =
   | { kind: 'mock' }
-  | { kind: 'verifying' }
+  | { kind: 'verifying-token'; token: string }
+  | { kind: 'hydrating-session'; jwt: string }
   | { kind: 'authed'; auth: AuthPayload }
   | { kind: 'anon'; error?: string };
 
 function initialAuth(): AuthState {
   if (MOCK_MODE) return { kind: 'mock' };
-  if (typeof window !== 'undefined' && parseTokenFromHash(window.location.hash)) {
-    return { kind: 'verifying' };
+  if (typeof window !== 'undefined') {
+    const session = parseSessionFromHash(window.location.hash);
+    if (session) return { kind: 'hydrating-session', jwt: session };
+    const token = parseTokenFromHash(window.location.hash);
+    if (token) return { kind: 'verifying-token', token };
   }
   const existing = loadAuth();
   if (existing) return { kind: 'authed', auth: existing };
@@ -196,16 +202,36 @@ export function App() {
     return () => clearInterval(id);
   }, [startedAt]);
 
-  // Magic-link landing route: verify, store JWT, strip the hash, rerender.
+  // Magic-link landing routes:
+  //   #/auth/verify?session=<jwt> — backend already minted; hydrate user+org
+  //   #/auth/verify?token=<hmac>  — legacy paste-token path; POST to verify
+  // Either way: persist payload, strip hash, rerender authed.
   useEffect(() => {
-    if (authState.kind !== 'verifying') return;
-    const token = parseTokenFromHash(window.location.hash);
-    if (!token) {
-      setAuthState({ kind: 'anon' });
-      return;
+    if (authState.kind === 'hydrating-session') {
+      let cancelled = false;
+      hydrateAuthFromJwt(apiHost, authState.jwt)
+        .then((payload) => {
+          if (cancelled) return;
+          storeAuth(payload);
+          const url = window.location.pathname + window.location.search;
+          window.history.replaceState(null, '', url || '/');
+          setAuthState({ kind: 'authed', auth: payload });
+        })
+        .catch((err: unknown) => {
+          if (cancelled) return;
+          clearAuth();
+          setAuthState({
+            kind: 'anon',
+            error: err instanceof Error ? err.message : String(err),
+          });
+        });
+      return () => {
+        cancelled = true;
+      };
     }
+    if (authState.kind !== 'verifying-token') return;
     let cancelled = false;
-    verifyMagicLink(apiHost, token)
+    verifyMagicLink(apiHost, authState.token)
       .then((payload) => {
         if (cancelled) return;
         storeAuth(payload);
@@ -318,7 +344,7 @@ export function App() {
     });
   }, [state.cardState, params.sessionId, params.apiHost, params.token]);
 
-  if (authState.kind === 'verifying') {
+  if (authState.kind === 'verifying-token' || authState.kind === 'hydrating-session') {
     return <div class="hud__error-overlay">Signing you in…</div>;
   }
 

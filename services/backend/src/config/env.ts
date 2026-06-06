@@ -109,4 +109,34 @@ export const config = {
     if (!v || v.startsWith('<')) return undefined;
     return v;
   },
+  /**
+   * Real magic-link email auth, Prompt #10. All optional in dev — the
+   * email service falls back to logging when no API key is set, and the
+   * paste-token UI keeps working behind `demoAuthEnabled` for fast lab
+   * iteration.
+   */
+  get resendApiKey(): string | undefined {
+    loadEnv();
+    const v = process.env.RESEND_API_KEY;
+    if (!v || v.startsWith('<')) return undefined;
+    return v;
+  },
+  get emailFromAddress(): string {
+    return optional('EMAIL_FROM_ADDRESS', 'Field IQ <noreply@app.fieldiq.io>');
+  },
+  /** Base URL the email link points at — must be the BACKEND host. */
+  get magicLinkBaseUrl(): string {
+    return optional('MAGIC_LINK_BASE_URL', 'http://localhost:3000');
+  },
+  /** Demo `admin@eon.ai`/`Demo1234!` endpoint + paste-token UI gate. */
+  get demoAuthEnabled(): boolean {
+    return optional('DEMO_AUTH_ENABLED', 'false') === 'true';
+  },
+  /** Org to slot first-time auto-created users into. */
+  get defaultOrgId(): string | undefined {
+    loadEnv();
+    const v = process.env.DEFAULT_ORG_ID;
+    if (!v || v.startsWith('<')) return undefined;
+    return v;
+  },
 };
