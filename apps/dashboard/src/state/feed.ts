@@ -12,6 +12,8 @@ export interface SessionEnvelope {
     | 'step.failed'
     | 'session.completed'
     | 'session.abandoned'
+    | 'session.ended'
+    | 'certificate.ready'
     | 'error';
   sessionId: string;
   orgId: string;

@@ -14,7 +14,11 @@ export type SessionEventType =
   | 'step.failed'
   | 'session.completed'
   | 'session.abandoned'
+  | 'session.ended'
   | 'error';
+
+/** Final outcome carried by `session.ended`. */
+export type SessionFinalOutcome = 'pass' | 'fail' | 'incomplete';
 
 export interface SessionEventEnvelope {
   /** Monotonic per-session id for reconnect replay (last_event_id). */
@@ -30,6 +34,10 @@ export interface SessionEventEnvelope {
   message?: string;
   detail?: string;
   reportUrl?: string;
+  /** Set on `session.ended` so cert-generator and the dashboard can filter. */
+  finalOutcome?: SessionFinalOutcome;
+  /** Set on `session.ended` so consumers don't need a follow-up query. */
+  endedAt?: string;
 }
 
 export function sessionChannel(sessionId: string): string {

@@ -202,6 +202,24 @@ export const auditLog = pgTable('audit_log', {
   supersededBy: uuid('superseded_by'),
 });
 
+// --- Certificates ---
+// One row per issued completion certificate. Written by services/cert-generator
+// after it builds the PDF; read by GET /api/sessions/:sessionId/certificate.
+// cert_id is the human-readable identifier (FIQ-YYYY-MM-DD-XXXXXX); cert_hash
+// is the sha256 of the PDF bytes for tamper detection.
+export const certificates = pgTable('certificates', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  sessionId: uuid('session_id')
+    .notNull()
+    .references(() => sessions.id, { onDelete: 'cascade' }),
+  certId: text('cert_id').notNull().unique(),
+  certUrl: text('cert_url').notNull(),
+  certHash: text('cert_hash').notNull(),
+  issuedAt: timestamp('issued_at', { withTimezone: true }).notNull().defaultNow(),
+  storageBackend: text('storage_backend').notNull(),
+  storageKey: text('storage_key').notNull(),
+});
+
 // --- KPI rollups ---
 export const sessionKpis = pgTable('session_kpis', {
   sessionId: uuid('session_id')

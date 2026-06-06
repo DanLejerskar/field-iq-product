@@ -22,6 +22,13 @@
       "when": 1780093867120,
       "tag": "0002_audit_note_event",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1780776901803,
+      "tag": "0003_certificates",
+      "breakpoints": true
     }
   ]
 }
