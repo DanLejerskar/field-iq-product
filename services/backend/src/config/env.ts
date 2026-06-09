@@ -63,6 +63,22 @@ export const config = {
   get useMockVerifier(): boolean {
     return optional('USE_MOCK_VERIFIER', 'true') === 'true';
   },
+  /**
+   * Demo-grade inline Claude Vision verifier (services/backend/src/workers/
+   * claude-verifier.ts). Used when USE_MOCK_VERIFIER=false and the standalone
+   * Python verifier service isn't deployed. The architecture's long-term home
+   * for Claude calls is services/verifier; this inline path exists so we can
+   * switch on real verification with one env flag while Railway is unstable.
+   */
+  get anthropicApiKey(): string | undefined {
+    loadEnv();
+    const v = process.env.ANTHROPIC_API_KEY;
+    if (!v || v.startsWith('<')) return undefined;
+    return v;
+  },
+  get anthropicModel(): string {
+    return optional('ANTHROPIC_MODEL', 'claude-sonnet-4-6');
+  },
   s3: {
     /**
      * True only when S3_ENDPOINT is explicitly configured to a non-placeholder
