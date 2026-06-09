@@ -1,11 +1,15 @@
 /**
- * Seeds the DAC #811 equipment + 10-step LOTO procedure. Idempotent: a second run is a
- * no-op (upsert by natural keys). Run via `pnpm seed`.
+ * Seeds the Pump Skid P-204 acceptance-test equipment + 12-step LOTO procedure.
+ * Idempotent: a second run is a no-op (upsert by natural keys). Run via `pnpm seed`.
+ *
+ * Was DAC #811 (10 steps); swapped to P-204 (12 steps + EXXOP kit reference photos)
+ * for the live CEO acceptance test. The DAC seed remains in `dac811_loto.ts` as a
+ * fallback — change this import to use it again.
  */
 import { eq, and } from 'drizzle-orm';
 import { closeDb, getDb } from '../src/db/client.js';
 import { equipment, organizations, procedures, steps, users } from '../src/db/schema.js';
-import { SEED_EQUIPMENT, SEED_ORG, SEED_PROCEDURE, SEED_USERS } from './dac811_loto.js';
+import { SEED_EQUIPMENT, SEED_ORG, SEED_PROCEDURE, SEED_USERS } from './p204_acceptance.js';
 
 function info(msg: string): void {
   // eslint-disable-next-line no-console

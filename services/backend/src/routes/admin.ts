@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { authenticate, requirePrincipal } from '../auth/plugin.js';
 import { config } from '../config/env.js';
@@ -15,9 +15,15 @@ function requireAdminOrTrainer(req: Parameters<typeof requirePrincipal>[0]): voi
 
 export function registerAdminRoutes(app: FastifyInstance): void {
   // --- Equipment ---
+  // Newest first so the most recently seeded equipment wins for the
+  // glasses-webapp "Start LOTO session" flow (which picks index 0).
   app.get('/api/admin/equipment', { preHandler: authenticate }, async (req) => {
     const p = requirePrincipal(req);
-    return getDb().select().from(equipment).where(eq(equipment.orgId, p.org));
+    return getDb()
+      .select()
+      .from(equipment)
+      .where(eq(equipment.orgId, p.org))
+      .orderBy(desc(equipment.createdAt));
   });
 
   app.post('/api/admin/equipment', { preHandler: authenticate }, async (req) => {
