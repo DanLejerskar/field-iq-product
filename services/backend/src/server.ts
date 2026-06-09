@@ -14,6 +14,7 @@ import { AppError } from './errors.js';
 import { getRedis } from './services/bus.js';
 import { registerAdminRoutes } from './routes/admin.js';
 import { registerAuthRoutes } from './routes/auth.js';
+import { registerDemoBypassRoutes } from './routes/authDemoBypass.js';
 import { registerContentRoutes } from './routes/content.js';
 import { registerSessionCertificateRoutes } from './routes/sessionCertificate.js';
 import { registerSessionReplayRoutes } from './routes/sessionReplay.js';
@@ -122,6 +123,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   });
 
   registerAuthRoutes(app);
+  registerDemoBypassRoutes(app);
   registerContentRoutes(app);
   registerSessionRoutes(app);
   registerSessionReplayRoutes(app);

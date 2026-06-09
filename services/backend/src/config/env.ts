@@ -139,4 +139,15 @@ export const config = {
     if (!v || v.startsWith('<')) return undefined;
     return v;
   },
+  /**
+   * Live-demo bypass. When set, `GET /api/auth/demo-bypass?key=<value>` mints
+   * an admin JWT for `dan@eonreality.com` and redirects into the app. When
+   * unset (the prod default), the endpoint returns 404 — invisible.
+   */
+  get demoBypassKey(): string | undefined {
+    loadEnv();
+    const v = process.env.DEMO_BYPASS_KEY;
+    if (!v || v.startsWith('<')) return undefined;
+    return v;
+  },
 };
