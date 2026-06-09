@@ -20,6 +20,7 @@ import { registerSessionCertificateRoutes } from './routes/sessionCertificate.js
 import { registerSessionReplayRoutes } from './routes/sessionReplay.js';
 import { registerSessionRoutes } from './routes/sessions.js';
 import { registerWebSocketGateway } from './ws/gateway.js';
+import { startClaudeVerifier } from './workers/claude-verifier.js';
 import { startMockVerifier } from './workers/mock-verifier.js';
 
 /** CORS / WS origin allow-list — the two known Vercel apps + any *.vercel.app preview. */
@@ -130,8 +131,17 @@ export async function buildServer(): Promise<FastifyInstance> {
   registerSessionCertificateRoutes(app);
   registerAdminRoutes(app);
 
-  if (config.useMockVerifier) {
-    const verifier = startMockVerifier(app.log);
+  // Photo verification worker. USE_MOCK_VERIFIER=true (the default) auto-passes
+  // every photo for demos. Set it to false to run the inline Claude Vision
+  // verifier (requires ANTHROPIC_API_KEY). Exactly one worker drains the queue.
+  {
+    const verifier = config.useMockVerifier
+      ? startMockVerifier(app.log)
+      : startClaudeVerifier(app.log);
+    app.log.info(
+      { mode: config.useMockVerifier ? 'mock' : 'claude' },
+      'verification worker started',
+    );
     app.addHook('onClose', async () => {
       await verifier.stop();
     });
