@@ -81,7 +81,7 @@ export const SEED_EQUIPMENT: SeedEquipment = {
   description:
     'Fictional pump skid with three energy isolation points: electrical (BR-204), process water (V-204), and pneumatic (PN-204). Used for the EON Field IQ LOTO acceptance test against the EXXOP physical kit.',
   location: 'EON Field IQ Lab',
-  photoUrl: KIT_IMAGES.wall,
+  photoUrl: KIT_IMAGES.p204,
   metadata: {
     scenario: 'three-source-lockout',
     isolation_points: ['BR-204', 'V-204', 'PN-204'],
@@ -96,7 +96,7 @@ export const SEED_STEPS: SeedStep[] = [
     title: 'NOTIFY',
     instruction:
       "Say out loud: 'Notifying operations P-204 going offline.' Then say 'DONE.'",
-    referenceImageUrl: KIT_IMAGES.wall,
+    referenceImageUrl: KIT_IMAGES.p204,
     verificationRequired: true,
     verificationPrompt:
       'Verify that the worker has acknowledged starting the lockout procedure. ' +
@@ -109,7 +109,7 @@ export const SEED_STEPS: SeedStep[] = [
     title: 'IDENTIFY THE SKID',
     instruction:
       "Stand in front of the wall. Look at the big P-204 banner. Say 'Hey Meta, take a picture and send to Field IQ.'",
-    referenceImageUrl: KIT_IMAGES.wall,
+    referenceImageUrl: KIT_IMAGES.p204,
     verificationRequired: true,
     verificationPrompt:
       'Confirm that the P-204 QR target banner is visible in the frame. ' +
@@ -122,7 +122,7 @@ export const SEED_STEPS: SeedStep[] = [
     title: 'SHUTDOWN',
     instruction:
       "Pretend to press the local stop button on the (imaginary) panel. Say 'STOPPED.'",
-    referenceImageUrl: KIT_IMAGES.wall,
+    referenceImageUrl: KIT_IMAGES.p204,
     verificationRequired: true,
     verificationPrompt:
       'Verify that the worker has acknowledged stopping the equipment. ' +
@@ -135,7 +135,7 @@ export const SEED_STEPS: SeedStep[] = [
     title: 'IDENTIFY ELECTRICAL',
     instruction:
       "Look at the BR-204 target page on the wall. Say 'Hey Meta, take a picture and send to Field IQ.'",
-    referenceImageUrl: KIT_IMAGES.wall,
+    referenceImageUrl: KIT_IMAGES.br204,
     verificationRequired: true,
     verificationPrompt:
       'Confirm that the BR-204 (Electrical Disconnect) target page is the primary subject. ' +
@@ -162,7 +162,7 @@ export const SEED_STEPS: SeedStep[] = [
     title: 'IDENTIFY VALVE',
     instruction:
       "Look at the V-204 target page. Say 'Hey Meta, take a picture and send to Field IQ.'",
-    referenceImageUrl: KIT_IMAGES.wall,
+    referenceImageUrl: KIT_IMAGES.v204,
     verificationRequired: true,
     verificationPrompt:
       'Confirm that the V-204 (Process Water Gate Valve) target page is the primary subject. ' +
@@ -188,7 +188,7 @@ export const SEED_STEPS: SeedStep[] = [
     title: 'IDENTIFY PNEUMATIC',
     instruction:
       "Look at the PN-204 target page. Say 'Hey Meta, take a picture and send to Field IQ.'",
-    referenceImageUrl: KIT_IMAGES.wall,
+    referenceImageUrl: KIT_IMAGES.pn204,
     verificationRequired: true,
     verificationPrompt:
       'Confirm that the PN-204 (Pneumatic Control Plug) target page is the primary subject. ' +
@@ -244,7 +244,7 @@ export const SEED_STEPS: SeedStep[] = [
     title: 'VERIFY ZERO ENERGY',
     instruction:
       "Pretend to press the start button on the imaginary panel. Confirm nothing happens. Say 'ZERO.'",
-    referenceImageUrl: KIT_IMAGES.wall,
+    referenceImageUrl: KIT_IMAGES.p204,
     verificationRequired: true,
     verificationPrompt:
       'Verify zero-energy confirmation. The worker has attempted to start the equipment ' +

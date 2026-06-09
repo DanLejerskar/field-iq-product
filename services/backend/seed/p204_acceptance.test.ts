@@ -66,27 +66,30 @@ describe('P-204 acceptance test seed', () => {
     }
   });
 
-  it('points the kit-bearing steps at the correct component image', () => {
-    // Map: stepNumber → expected first ~20 chars of the base64 body that
-    // identifies which physical component the reference photo shows.
-    // We don't assert image bytes here; we just confirm a consistent URI was
-    // wired in (i.e. the same image is reused as the "wall" backdrop on
-    // QR-only steps, and a distinct one on each kit-component step).
+  it('wires the right site photo into the right step (identify-style steps + overview)', () => {
     const ref = (n: number) => SEED_STEPS[n - 1]!.referenceImageUrl;
 
-    // QR-only steps all use the same wall scene.
-    expect(ref(1)).toBe(ref(2));
-    expect(ref(2)).toBe(ref(3));
-    expect(ref(3)).toBe(ref(4));
-    expect(ref(4)).toBe(ref(6));
-    expect(ref(6)).toBe(ref(8));
-    expect(ref(8)).toBe(ref(12));
+    // P-204 overview shot used on the bookend / context steps.
+    expect(ref(1)).toBe(ref(2)); // NOTIFY + IDENTIFY SKID share the overview
+    expect(ref(2)).toBe(ref(3)); // IDENTIFY SKID + SHUTDOWN
+    expect(ref(3)).toBe(ref(12)); // SHUTDOWN + VERIFY ZERO ENERGY
 
-    // Kit-component steps each have a distinct image.
+    // The three IDENTIFY-this-isolation-point steps each get a DISTINCT
+    // industrial scene photo (BR, V, PN — not the overview, not each other).
+    const identifyRefs = [ref(4), ref(6), ref(8)];
+    expect(new Set(identifyRefs).size).toBe(3);
+    for (const r of identifyRefs) expect(r).not.toBe(ref(2));
+
+    // Kit-component steps each have a distinct kit photo, separate from any
+    // of the site photos.
     const componentRefs = new Set([ref(5), ref(7), ref(9), ref(10), ref(11)]);
     expect(componentRefs.size).toBe(5);
-    // And none of the component refs is the wall fallback.
-    for (const r of componentRefs) expect(r).not.toBe(ref(1));
+    for (const r of componentRefs) {
+      expect(r).not.toBe(ref(2)); // not the overview
+      expect(r).not.toBe(ref(4)); // not BR
+      expect(r).not.toBe(ref(6)); // not V
+      expect(r).not.toBe(ref(8)); // not PN
+    }
   });
 
   it('marks every step as verificationRequired with retryThreshold=3', () => {
