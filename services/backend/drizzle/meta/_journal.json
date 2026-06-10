@@ -36,6 +36,13 @@
       "when": 1780778572903,
       "tag": "0004_magic_links",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1781124282379,
+      "tag": "0005_genesis_snapshots",
+      "breakpoints": true
     }
   ]
 }

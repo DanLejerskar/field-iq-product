@@ -9,11 +9,13 @@ import {
   boolean,
   char,
   customType,
+  index,
   integer,
   jsonb,
   numeric,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uuid,
@@ -236,6 +238,95 @@ export const magicLinks = pgTable('magic_links', {
   userAgent: text('user_agent'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+// --- Genesis procedure snapshots (ported from Yogi's bridge, B-28) ---
+// An immutable, version-pinned copy of a Genesis procedure at import time. The runtime grades
+// against the snapshot (compiled verification_prompt + copied exemplars), never the live Genesis
+// procedure, so a Genesis edit can't change a procedure mid-session. A re-import whose content_hash
+// differs creates a NEW snapshot row and supersedes the prior (version chain).
+export const procedureSnapshots = pgTable(
+  'procedure_snapshots',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    genesisProjectId: text('genesis_project_id').notNull(),
+    genesisProcedureId: text('genesis_procedure_id').notNull(),
+    title: text('title').notNull(),
+    sourceVersion: integer('source_version').notNull(),
+    contentHash: text('content_hash').notNull(),
+    status: text('status').notNull().default('active'), // active | superseded
+    importedAt: timestamp('imported_at', { withTimezone: true }).notNull().defaultNow(),
+    supersededBy: uuid('superseded_by'),
+  },
+  (t) => [index('procedure_snapshots_procedure_idx').on(t.genesisProcedureId)],
+);
+
+export const procedureSnapshotSteps = pgTable(
+  'procedure_snapshot_steps',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    snapshotId: uuid('snapshot_id')
+      .notNull()
+      .references(() => procedureSnapshots.id),
+    stepNumber: integer('step_number').notNull(),
+    title: text('title').notNull(),
+    description: text('description').notNull(),
+    verificationPrompt: text('verification_prompt').notNull(),
+    expectedStateText: text('expected_state_text').notNull(),
+    safetyLevel: text('safety_level').notNull(),
+    interactionType: text('interaction_type'),
+    componentLabel: text('component_label'),
+    promptHash: text('prompt_hash').notNull(),
+    durationSec: integer('duration_sec'),
+  },
+  (t) => [index('procedure_snapshot_steps_snapshot_idx').on(t.snapshotId)],
+);
+
+export const procedureSnapshotExemplars = pgTable(
+  'procedure_snapshot_exemplars',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    stepId: uuid('step_id')
+      .notNull()
+      .references(() => procedureSnapshotSteps.id),
+    angle: text('angle').notNull(), // authored | front | side | iso
+    s3Key: text('s3_key').notNull(),
+    sha256: char('sha256', { length: 64 }).notNull(),
+    width: integer('width').notNull(),
+    height: integer('height').notNull(),
+  },
+  (t) => [index('procedure_snapshot_exemplars_step_idx').on(t.stepId)],
+);
+
+// Async result sync-back to Genesis (B-29). A durable outbox: rows are POSTed to Genesis with
+// retry, never blocking the session.
+export const resultOutbox = pgTable(
+  'result_outbox',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sessionId: uuid('session_id')
+      .notNull()
+      .references(() => sessions.id),
+    payload: jsonb('payload').notNull(),
+    attempts: integer('attempts').notNull().default(0),
+    nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }).notNull().defaultNow(),
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+  },
+  (t) => [index('result_outbox_pending_idx').on(t.nextAttemptAt)],
+);
+
+// Idempotency guard for photo uploads (ported from Yogi's bridge).
+export const uploadClaims = pgTable(
+  'upload_claims',
+  {
+    sessionId: uuid('session_id').notNull(),
+    uploadId: text('upload_id').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.sessionId, t.uploadId] }),
+    index('upload_claims_created_at_idx').on(t.createdAt),
+  ],
+);
 
 // --- KPI rollups ---
 export const sessionKpis = pgTable('session_kpis', {

@@ -1,0 +1,244 @@
+{
+  "version": "3.0",
+  "procedure": {
+    "id": "23b66a98-3b97-4f55-9dd3-4197d3259be7",
+    "project_id": "c317ceea-dcf2-48c8-a1e6-7d12dd517f12",
+    "title": "Lockout/Tagout (DAC #811)",
+    "source": "manual",
+    "difficulty": "intermediate",
+    "safety_level": "critical",
+    "version": 2,
+    "content_hash": "f0a7d4464ca72c0895ae7a35abdb8d7f0734a01626a3b14e4e6b32db1a8965a1",
+    "metadata": null,
+    "total_steps": 8
+  },
+  "components": [
+    {
+      "id": "79d89d0a-c625-4f5a-aa69-801d816208d1",
+      "label": "Disconnect / Isolation Valve",
+      "mesh_names": [
+        "V-10103"
+      ]
+    },
+    {
+      "id": "ff0db71e-cdfa-4c5a-bc3d-c4693ecfa88d",
+      "label": "Lockout Hasp",
+      "mesh_names": [
+        "V10103 - HASP"
+      ]
+    },
+    {
+      "id": "b94ff4dc-640f-43a0-b189-17803586f431",
+      "label": "Padlock",
+      "mesh_names": [
+        "V10103 PADLOCK"
+      ]
+    },
+    {
+      "id": "48a82dbb-eaa0-43d3-83f2-9eae129eda83",
+      "label": "LOTO Tag",
+      "mesh_names": [
+        "V10103 TAG"
+      ]
+    },
+    {
+      "id": "8f39c267-5f3c-46c8-9da5-f042d1349411",
+      "label": "Pressure Gauge",
+      "mesh_names": [
+        "Dials_DPI_PI_XZV"
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "step_number": 1,
+      "title": "Don PPE",
+      "description": "Put on the required personal protective equipment before approaching the equipment.",
+      "expected_outcome": "Worker is wearing safety glasses, gloves, and arc-rated clothing.",
+      "safety_note": "No work begins without PPE appropriate to the hazard.",
+      "critical_step": false,
+      "phase_name": "Preparation",
+      "phase_level": null,
+      "interaction_config": {
+        "type": "read"
+      },
+      "component_id": null,
+      "component_label": null,
+      "camera_config": null,
+      "duration_sec": 30,
+      "expected_views": []
+    },
+    {
+      "step_number": 2,
+      "title": "Identify energy source",
+      "description": "Locate the disconnect/isolation valve for the equipment being locked out.",
+      "expected_outcome": "The correct isolation valve (V-10103) is identified at the equipment.",
+      "safety_note": "Isolating the wrong source leaves stored energy live.",
+      "critical_step": true,
+      "phase_name": "Isolation",
+      "phase_level": null,
+      "interaction_config": {
+        "type": "read"
+      },
+      "component_id": "79d89d0a-c625-4f5a-aa69-801d816208d1",
+      "component_label": "Disconnect / Isolation Valve",
+      "camera_config": null,
+      "duration_sec": 45,
+      "expected_views": []
+    },
+    {
+      "step_number": 3,
+      "title": "Shut down and isolate",
+      "description": "Operate the isolation valve to the closed/isolated position to stop energy flow.",
+      "expected_outcome": "Isolation valve is fully in the closed position.",
+      "safety_note": "Confirm the valve travels fully closed, not partially.",
+      "critical_step": false,
+      "phase_name": "Isolation",
+      "phase_level": null,
+      "interaction_config": {
+        "type": "rotate",
+        "parameters": {
+          "rotationAxis": "y",
+          "rotationDegrees": 90
+        }
+      },
+      "component_id": "79d89d0a-c625-4f5a-aa69-801d816208d1",
+      "component_label": "Disconnect / Isolation Valve",
+      "camera_config": null,
+      "duration_sec": 45,
+      "expected_views": []
+    },
+    {
+      "step_number": 4,
+      "title": "Apply lockout hasp",
+      "description": "Install a lockout hasp through the disconnect’s lockout point.",
+      "expected_outcome": "A lockout hasp is installed on the disconnect’s lockout point.",
+      "safety_note": "The hasp must hold the energy-isolating device in the safe position.",
+      "critical_step": true,
+      "phase_name": "Lockout",
+      "phase_level": null,
+      "interaction_config": {
+        "type": "press"
+      },
+      "component_id": "ff0db71e-cdfa-4c5a-bc3d-c4693ecfa88d",
+      "component_label": "Lockout Hasp",
+      "camera_config": null,
+      "duration_sec": 60,
+      "expected_views": []
+    },
+    {
+      "step_number": 5,
+      "title": "Apply padlock",
+      "description": "Lock your personal padlock through the hasp and confirm it is engaged.",
+      "expected_outcome": "A padlock is threaded through the hasp and the shackle is fully closed and engaged.",
+      "safety_note": "An open or merely-hanging padlock does not constitute a lockout.",
+      "critical_step": true,
+      "phase_name": "Lockout",
+      "phase_level": null,
+      "interaction_config": {
+        "type": "press"
+      },
+      "component_id": "b94ff4dc-640f-43a0-b189-17803586f431",
+      "component_label": "Padlock",
+      "camera_config": null,
+      "duration_sec": 45,
+      "expected_views": [
+        {
+          "angle": "authored",
+          "image_url": "https://mfuztmbptahiyjtrjqcb.storage.supabase.co/storage/v1/object/public/genesis-db-cleanup/step-renders/23b66a98-3b97-4f55-9dd3-4197d3259be7/v2/step-5-authored.png",
+          "width": 1024,
+          "height": 1024
+        },
+        {
+          "angle": "front",
+          "image_url": "https://mfuztmbptahiyjtrjqcb.storage.supabase.co/storage/v1/object/public/genesis-db-cleanup/step-renders/23b66a98-3b97-4f55-9dd3-4197d3259be7/v2/step-5-front.png",
+          "width": 1024,
+          "height": 1024
+        },
+        {
+          "angle": "iso",
+          "image_url": "https://mfuztmbptahiyjtrjqcb.storage.supabase.co/storage/v1/object/public/genesis-db-cleanup/step-renders/23b66a98-3b97-4f55-9dd3-4197d3259be7/v2/step-5-iso.png",
+          "width": 1024,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "step_number": 6,
+      "title": "Attach LOTO tag",
+      "description": "Fill in the LOTO tag (name + date) and attach it to the locked-out disconnect.",
+      "expected_outcome": "A DANGER / DO NOT OPERATE tag is attached at the lockout point, name and date filled in.",
+      "safety_note": "The tag identifies who applied the lock and must remain readable.",
+      "critical_step": false,
+      "phase_name": "Tagout",
+      "phase_level": null,
+      "interaction_config": {
+        "type": "read"
+      },
+      "component_id": "48a82dbb-eaa0-43d3-83f2-9eae129eda83",
+      "component_label": "LOTO Tag",
+      "camera_config": null,
+      "duration_sec": 45,
+      "expected_views": []
+    },
+    {
+      "step_number": 7,
+      "title": "Verify zero energy",
+      "description": "Confirm the pressure gauge reads zero, proving the equipment is de-energized.",
+      "expected_outcome": "The pressure gauge reads zero on the locked-out line.",
+      "safety_note": "Zero-energy verification must never be skipped — prefer a false negative over a false positive.",
+      "critical_step": true,
+      "phase_name": "Verification",
+      "phase_level": null,
+      "interaction_config": {
+        "type": "read",
+        "parameters": {
+          "hudOverlay": "gauge",
+          "hudReading": "0"
+        }
+      },
+      "component_id": "8f39c267-5f3c-46c8-9da5-f042d1349411",
+      "component_label": "Pressure Gauge",
+      "camera_config": null,
+      "duration_sec": 60,
+      "expected_views": [
+        {
+          "angle": "authored",
+          "image_url": "https://mfuztmbptahiyjtrjqcb.storage.supabase.co/storage/v1/object/public/genesis-db-cleanup/step-renders/23b66a98-3b97-4f55-9dd3-4197d3259be7/v2/step-7-authored.png",
+          "width": 1024,
+          "height": 1024
+        },
+        {
+          "angle": "front",
+          "image_url": "https://mfuztmbptahiyjtrjqcb.storage.supabase.co/storage/v1/object/public/genesis-db-cleanup/step-renders/23b66a98-3b97-4f55-9dd3-4197d3259be7/v2/step-7-front.png",
+          "width": 1024,
+          "height": 1024
+        },
+        {
+          "angle": "iso",
+          "image_url": "https://mfuztmbptahiyjtrjqcb.storage.supabase.co/storage/v1/object/public/genesis-db-cleanup/step-renders/23b66a98-3b97-4f55-9dd3-4197d3259be7/v2/step-7-iso.png",
+          "width": 1024,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "step_number": 8,
+      "title": "Document completion",
+      "description": "Record the lockout in the LOTO log to complete the procedure.",
+      "expected_outcome": "The lockout is documented with worker, equipment, and timestamp.",
+      "safety_note": "An undocumented lockout cannot be audited or safely released.",
+      "critical_step": false,
+      "phase_name": "Closeout",
+      "phase_level": null,
+      "interaction_config": {
+        "type": "read"
+      },
+      "component_id": null,
+      "component_label": null,
+      "camera_config": null,
+      "duration_sec": 30,
+      "expected_views": []
+    }
+  ]
+}

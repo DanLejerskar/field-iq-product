@@ -166,4 +166,33 @@ export const config = {
     if (!v || v.startsWith('<')) return undefined;
     return v;
   },
+  /**
+   * EON Genesis 3.0 — the upstream procedure source (ported from Yogi's bridge, B-28).
+   * The import service pulls `GET {baseUrl}/api/scenes/:projectId/export?format=fieldiq`
+   * with the M2M secret in the `X-API-Key` header. Both required only when an import is
+   * actually triggered; absent values fail loudly there, not at boot.
+   */
+  genesis: {
+    /** e.g. http://localhost:5001 (local dev) or https://eon-genesis-3.onrender.com (prod). */
+    get baseUrl(): string | undefined {
+      loadEnv();
+      const v = process.env.GENESIS_BASE_URL;
+      if (!v || v.startsWith('<')) return undefined;
+      return v.replace(/\/$/, '');
+    },
+    /** Shared M2M secret sent as `X-API-Key`; must match Genesis's `FIELDIQ_M2M_SECRET`. */
+    get m2mSecret(): string | undefined {
+      loadEnv();
+      const v = process.env.FIELDIQ_M2M_SECRET;
+      if (!v || v.startsWith('<')) return undefined;
+      return v;
+    },
+    /** Sync-back ingest URL (B-29). Unset ⇒ the result drainer never starts. */
+    get syncBackUrl(): string | undefined {
+      loadEnv();
+      const v = process.env.GENESIS_SYNC_BACK_URL;
+      if (!v || v.startsWith('<')) return undefined;
+      return v.replace(/\/$/, '');
+    },
+  },
 };
