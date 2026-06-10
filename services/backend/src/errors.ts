@@ -30,3 +30,5 @@ export const forbidden = (msg = 'Forbidden'): AppError => new AppError(403, 'for
 export const notFound = (msg = 'Not found'): AppError => new AppError(404, 'not_found', msg);
 export const conflict = (msg: string, detail?: string): AppError =>
   new AppError(409, 'conflict', msg, detail);
+export const serviceUnavailable = (msg: string, detail?: string): AppError =>
+  new AppError(503, 'service_unavailable', msg, detail);

@@ -14,6 +14,8 @@ export interface StorageAdapter {
     stepNumber: number,
     bytes: Buffer,
   ): Promise<{ key: string; sha256: string }>;
+  /** Generic blob put by key (ported from Yogi's bridge — used to copy Genesis exemplars). */
+  putObject(key: string, bytes: Buffer, contentType: string): Promise<{ key: string; sha256: string }>;
   presignGet(key: string, expiresInSeconds?: number): Promise<string>;
 }
 
@@ -23,6 +25,16 @@ export function sha256Hex(bytes: Buffer): string {
 
 export function photoKey(orgId: string, sessionId: string, stepNumber: number): string {
   return `${orgId}/${sessionId}/${stepNumber}-${randomUUID()}.jpg`;
+}
+
+/** Storage key for a Genesis exemplar copied into Field IQ storage (ported from Yogi's bridge). */
+export function exemplarKey(
+  genesisProcedureId: string,
+  sourceVersion: number,
+  stepNumber: number,
+  angle: string,
+): string {
+  return `exemplars/${genesisProcedureId}/v${sourceVersion}/step-${stepNumber}-${angle}-${randomUUID()}.png`;
 }
 
 export class S3StorageAdapter implements StorageAdapter {
@@ -58,6 +70,22 @@ export class S3StorageAdapter implements StorageAdapter {
     return { key, sha256: sha256Hex(bytes) };
   }
 
+  async putObject(
+    key: string,
+    bytes: Buffer,
+    contentType: string,
+  ): Promise<{ key: string; sha256: string }> {
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: config.s3.bucket,
+        Key: key,
+        Body: bytes,
+        ContentType: contentType,
+      }),
+    );
+    return { key, sha256: sha256Hex(bytes) };
+  }
+
   presignGet(key: string, expiresInSeconds = 300): Promise<string> {
     return getSignedUrl(this.client, new GetObjectCommand({ Bucket: config.s3.bucket, Key: key }), {
       expiresIn: expiresInSeconds,
@@ -80,6 +108,15 @@ export class DataUriStorageAdapter implements StorageAdapter {
     bytes: Buffer,
   ): Promise<{ key: string; sha256: string }> {
     const dataUri = `data:image/jpeg;base64,${bytes.toString('base64')}`;
+    return { key: dataUri, sha256: sha256Hex(bytes) };
+  }
+
+  async putObject(
+    _key: string,
+    bytes: Buffer,
+    contentType: string,
+  ): Promise<{ key: string; sha256: string }> {
+    const dataUri = `data:${contentType};base64,${bytes.toString('base64')}`;
     return { key: dataUri, sha256: sha256Hex(bytes) };
   }
 

@@ -7,6 +7,7 @@ import { getDb } from '../db/client.js';
 import { runMigrations } from '../db/migrate.js';
 import { equipment, procedures, steps } from '../db/schema.js';
 import { AuditLogService } from '../services/audit.js';
+import { fetchFieldIqExport } from '../genesis/genesis-client.js';
 
 function requireAdminOrTrainer(req: Parameters<typeof requirePrincipal>[0]): void {
   const role = requirePrincipal(req).role;
@@ -165,6 +166,55 @@ export function registerAdminRoutes(app: FastifyInstance): void {
       seedRan = true;
     }
     return { ok: true, seedRan, durationMs: Date.now() - startedAt };
+  });
+
+  // --- Genesis connectivity probe ---
+  // Read-only: calls Genesis's fieldiq export with the M2M secret and returns a
+  // small summary, so we can confirm reachability + the secret + the real data
+  // shape from the DEPLOYED backend (which can reach Genesis; the dev sandbox
+  // cannot). Gated by ADMIN_SETUP_TOKEN. Writes nothing to the database.
+  //   GET /api/admin/genesis-ping?projectId=<genesis project id>
+  app.get('/api/admin/genesis-ping', async (req) => {
+    const expected = config.adminSetupToken;
+    if (!expected) throw notFound('Setup route not enabled. Set ADMIN_SETUP_TOKEN to enable.');
+    const provided = headerToken(req);
+    if (!provided || provided !== expected) {
+      throw unauthorized('Invalid or missing X-Admin-Setup-Token');
+    }
+    const projectId = (req.query as { projectId?: string }).projectId;
+    if (!projectId) throw badRequest('projectId query param is required');
+
+    const startedAt = Date.now();
+    try {
+      const exp = await fetchFieldIqExport(projectId);
+      const stepsWithImages = (exp.steps ?? []).filter(
+        (s) => (s.expected_views?.length ?? 0) > 0,
+      ).length;
+      return {
+        ok: true,
+        durationMs: Date.now() - startedAt,
+        summary: {
+          version: exp.version,
+          procedureTitle: exp.procedure?.title,
+          safetyLevel: exp.procedure?.safety_level ?? null,
+          totalSteps: exp.procedure?.total_steps ?? exp.steps?.length ?? 0,
+          componentCount: exp.components?.length ?? 0,
+          stepsWithRenderedImages: stepsWithImages,
+          firstStep: exp.steps?.[0]
+            ? { number: exp.steps[0].step_number, title: exp.steps[0].title }
+            : null,
+        },
+      };
+    } catch (err) {
+      // Surface the failure as a readable payload rather than a 4xx/5xx so the
+      // browser-console caller can see exactly what went wrong.
+      const message = err instanceof Error ? err.message : String(err);
+      const detail =
+        err && typeof err === 'object' && 'detail' in err
+          ? String((err as { detail?: unknown }).detail)
+          : undefined;
+      return { ok: false, durationMs: Date.now() - startedAt, error: message, detail };
+    }
   });
 }
 
