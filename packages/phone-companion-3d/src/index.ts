@@ -9,6 +9,7 @@
 export * from './types.js';
 export { buildGeometry, buildMaterial, buildMesh, disposeMesh } from './primitives.js';
 export { loadScene, disposeScene, type LoadedScene, type Viewport } from './sceneLoader.js';
+export { findNamedNode, indexModelNodes, type ModelIndex } from './model.js';
 export { attachControls, type ControlsHandle, type ControlsOpts } from './controls.js';
 export { createViewer, type ViewerHandle, type ViewerInit } from './viewerCore.js';
 export { createViewerComponent, type CreateElement, type ViewerHooks } from './Viewer.js';
