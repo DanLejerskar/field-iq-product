@@ -8,7 +8,6 @@ import {
   buildMaterializePlan,
   pickReferenceView,
   resolveImageUrl,
-  stepNeedsVerification,
 } from './snapshot-materializer.js';
 
 const FIXTURE = resolve(import.meta.dirname, '../genesis/__fixtures__/fieldiq-export-loto.json');
@@ -32,26 +31,6 @@ describe('resolveImageUrl', () => {
 
   it('returns the raw path when no base is configured', () => {
     expect(resolveImageUrl('/renders/a.png')).toBe('/renders/a.png');
-  });
-});
-
-describe('stepNeedsVerification', () => {
-  it('rendered views always require verification, even for read steps', () => {
-    expect(stepNeedsVerification('read', 3)).toBe(true);
-  });
-
-  it('read/voice_ack with no views are ack-only', () => {
-    expect(stepNeedsVerification('read', 0)).toBe(false);
-    expect(stepNeedsVerification('voice_ack', 0)).toBe(false);
-  });
-
-  it('physical interactions require verification', () => {
-    expect(stepNeedsVerification('press', 0)).toBe(true);
-    expect(stepNeedsVerification('rotate', 0)).toBe(true);
-  });
-
-  it('unknown interaction defaults to requiring verification', () => {
-    expect(stepNeedsVerification(null, 0)).toBe(true);
   });
 });
 
@@ -110,27 +89,22 @@ describe('buildMaterializePlan (against the captured Genesis fixture)', () => {
     expect(mapped.instruction).toContain(src!.description);
   });
 
-  it('makes rendered steps verifiable with a compiled prompt + reference image', () => {
+  it('every step requires verification and carries a non-empty compiled prompt', () => {
+    // A null/empty prompt means Claude gets an empty instruction and returns the
+    // safe retry verdict for every photo (live failure, 2026-06-11) — guard it.
+    for (const mapped of result.steps) {
+      expect(mapped.verificationRequired).toBe(true);
+      expect(mapped.verificationPrompt).toBeTruthy();
+      expect(mapped.verificationPrompt!.length).toBeGreaterThan(20);
+    }
+  });
+
+  it('gives rendered steps a reference image', () => {
     const rendered = exp.steps.filter((s) => (s.expected_views?.length ?? 0) > 0);
     expect(rendered.length).toBeGreaterThan(0);
     for (const src of rendered) {
       const mapped = result.steps.find((s) => s.stepNumber === src.step_number)!;
-      expect(mapped.verificationRequired).toBe(true);
-      expect(mapped.verificationPrompt).toBeTruthy();
       expect(mapped.referenceImageUrl).toBeTruthy();
-    }
-  });
-
-  it('makes unrendered read steps ack-only with no prompt', () => {
-    const ackOnly = exp.steps.filter(
-      (s) =>
-        (s.expected_views?.length ?? 0) === 0 && s.interaction_config?.type === 'read',
-    );
-    expect(ackOnly.length).toBeGreaterThan(0);
-    for (const src of ackOnly) {
-      const mapped = result.steps.find((s) => s.stepNumber === src.step_number)!;
-      expect(mapped.verificationRequired).toBe(false);
-      expect(mapped.verificationPrompt).toBeNull();
     }
   });
 

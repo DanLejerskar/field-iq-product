@@ -187,7 +187,12 @@ export function registerAdminRoutes(app: FastifyInstance): void {
     if (!provided || provided !== expected) {
       throw unauthorized('Invalid or missing X-Admin-Setup-Token');
     }
-    const q = req.query as { projectId?: string; materialize?: string; orgId?: string };
+    const q = req.query as {
+      projectId?: string;
+      materialize?: string;
+      refresh?: string;
+      orgId?: string;
+    };
     if (!q.projectId) throw badRequest('projectId query param is required');
 
     const startedAt = Date.now();
@@ -203,7 +208,10 @@ export function registerAdminRoutes(app: FastifyInstance): void {
       if (q.materialize === 'true') {
         const plan = buildSnapshotFromExport(exp);
         const rows = buildMaterializePlan(exp, plan, { genesisBaseUrl: config.genesis.baseUrl });
-        materialized = await materializePlan(rows, { orgId: q.orgId });
+        materialized = await materializePlan(rows, {
+          orgId: q.orgId,
+          refreshSteps: q.refresh === 'true',
+        });
         req.log.info(
           { procedureId: materialized.procedureId, created: materialized.procedureCreated },
           'genesis-import: materialized into live tables',
