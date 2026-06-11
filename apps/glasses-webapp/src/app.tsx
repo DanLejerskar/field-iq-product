@@ -26,6 +26,7 @@ import {
   type AuthPayload,
 } from './auth.js';
 import { attachInput } from './input.js';
+import { downscalePhoto } from './photo.js';
 import { SignIn } from './SignIn.js';
 import { reduce } from './state.js';
 import { StepCard } from './StepCard.js';
@@ -145,7 +146,11 @@ async function uploadPhoto(
   stepNumber: number,
   file: File,
 ): Promise<void> {
-  const buf = await file.arrayBuffer();
+  // Camera files are 3–6 MB and the backend caps bodies ~1 MB (413 otherwise);
+  // shrink to an upload-sized JPEG first. Fall back to the raw file if the
+  // browser can't do canvas work — better an occasional 413 than a dead button.
+  const upload: Blob = await downscalePhoto(file).catch(() => file);
+  const buf = await upload.arrayBuffer();
   // btoa(String.fromCharCode(...new Uint8Array(buf))) blows the stack on large files,
   // so chunk through TextEncoder + base64 manually.
   const bytes = new Uint8Array(buf);
