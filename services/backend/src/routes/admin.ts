@@ -7,7 +7,13 @@ import { getDb } from '../db/client.js';
 import { runMigrations } from '../db/migrate.js';
 import { equipment, procedures, steps } from '../db/schema.js';
 import { AuditLogService } from '../services/audit.js';
+import { buildSnapshotFromExport } from '../genesis/build-snapshot.js';
 import { fetchFieldIqExport } from '../genesis/genesis-client.js';
+import { importProcedureSnapshot } from '../services/procedure-import.js';
+import {
+  buildMaterializePlan,
+  materializePlan,
+} from '../services/snapshot-materializer.js';
 
 function requireAdminOrTrainer(req: Parameters<typeof requirePrincipal>[0]): void {
   const role = requirePrincipal(req).role;
@@ -166,6 +172,64 @@ export function registerAdminRoutes(app: FastifyInstance): void {
       seedRan = true;
     }
     return { ok: true, seedRan, durationMs: Date.now() - startedAt };
+  });
+
+  // --- Genesis import trigger ---
+  // The missing button for the B-28 engine: pulls the fieldiq export, writes the
+  // immutable snapshot, and (opt-in) materializes it into the live equipment/
+  // procedures/steps tables so "Start LOTO session" picks it up. Gated by
+  // ADMIN_SETUP_TOKEN, same as migrate/ping.
+  //   POST /api/admin/genesis-import?projectId=<id>[&materialize=true][&orgId=<uuid>]
+  app.post('/api/admin/genesis-import', async (req) => {
+    const expected = config.adminSetupToken;
+    if (!expected) throw notFound('Setup route not enabled. Set ADMIN_SETUP_TOKEN to enable.');
+    const provided = headerToken(req);
+    if (!provided || provided !== expected) {
+      throw unauthorized('Invalid or missing X-Admin-Setup-Token');
+    }
+    const q = req.query as { projectId?: string; materialize?: string; orgId?: string };
+    if (!q.projectId) throw badRequest('projectId query param is required');
+
+    const startedAt = Date.now();
+    try {
+      const exp = await fetchFieldIqExport(q.projectId);
+      const importResult = await importProcedureSnapshot(exp);
+      req.log.info(
+        { projectId: q.projectId, status: importResult.status, version: importResult.version },
+        'genesis-import: snapshot written',
+      );
+
+      let materialized = null;
+      if (q.materialize === 'true') {
+        const plan = buildSnapshotFromExport(exp);
+        const rows = buildMaterializePlan(exp, plan, { genesisBaseUrl: config.genesis.baseUrl });
+        materialized = await materializePlan(rows, { orgId: q.orgId });
+        req.log.info(
+          { procedureId: materialized.procedureId, created: materialized.procedureCreated },
+          'genesis-import: materialized into live tables',
+        );
+      }
+
+      return {
+        ok: true,
+        durationMs: Date.now() - startedAt,
+        import: importResult,
+        materialized,
+        summary: {
+          procedureTitle: exp.procedure.title,
+          totalSteps: exp.steps.length,
+          stepsWithRenderedImages: exp.steps.filter((s) => (s.expected_views?.length ?? 0) > 0)
+            .length,
+        },
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const detail =
+        err && typeof err === 'object' && 'detail' in err
+          ? String((err as { detail?: unknown }).detail)
+          : undefined;
+      return { ok: false, durationMs: Date.now() - startedAt, error: message, detail };
+    }
   });
 
   // --- Genesis connectivity probe ---
