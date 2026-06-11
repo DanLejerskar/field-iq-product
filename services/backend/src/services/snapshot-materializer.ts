@@ -25,9 +25,6 @@ import { equipment, organizations, procedures, steps } from '../db/schema.js';
 import type { SnapshotPlan } from '../genesis/build-snapshot.js';
 import type { FieldIqExport } from '../genesis/export-contract.js';
 
-/** Interaction types that mean "acknowledge and move on" — no photo verification. */
-const ACK_ONLY_INTERACTIONS = new Set(['read', 'voice_ack']);
-
 export interface MaterializeStepPlan {
   stepNumber: number;
   title: string;
@@ -65,20 +62,6 @@ export function resolveImageUrl(imageUrl: string, genesisBaseUrl?: string): stri
   return imageUrl.startsWith('/') ? `${base}${imageUrl}` : `${base}/${imageUrl}`;
 }
 
-/**
- * A step needs photo verification when Genesis rendered exemplar views for it, or when its
- * interaction implies a physical action (press/rotate/…). Pure read/acknowledge steps with
- * no rendered views become ack-only so the worker isn't forced to photograph a screen of text.
- */
-export function stepNeedsVerification(
-  interactionType: string | null,
-  renderedViewCount: number,
-): boolean {
-  if (renderedViewCount > 0) return true;
-  if (interactionType === null) return true;
-  return !ACK_ONLY_INTERACTIONS.has(interactionType);
-}
-
 /** Prefer the deliberately authored render; fall back to the first available view. */
 export function pickReferenceView(
   views: { angle: string; image_url: string }[] | undefined,
@@ -103,16 +86,19 @@ export function buildMaterializePlan(
 
   const stepPlans: MaterializeStepPlan[] = plan.steps.map((s) => {
     const src = exportByNumber.get(s.stepNumber);
-    const views = src?.expected_views;
-    const verificationRequired = stepNeedsVerification(s.interactionType, views?.length ?? 0);
-    const reference = pickReferenceView(views);
+    const reference = pickReferenceView(src?.expected_views);
     const safetyNote = src?.safety_note;
     return {
       stepNumber: s.stepNumber,
       title: s.title,
       instruction: safetyNote ? `${s.description}\n⚠ ${safetyNote}` : s.description,
-      verificationRequired,
-      verificationPrompt: verificationRequired ? s.verificationPrompt : null,
+      // Every step carries its compiled prompt and is photo-verified. The webapp's
+      // step card always offers the camera; a null prompt here meant Claude received
+      // an empty instruction and returned the safe retry verdict on every photo
+      // (live failure, 2026-06-11). compile-prompt already produces a sensible
+      // "component clearly visible" rubric for read-style steps, so use it.
+      verificationRequired: true,
+      verificationPrompt: s.verificationPrompt,
       successCriteria: s.expectedStateText || null,
       referenceImageUrl: reference ? resolveImageUrl(reference, opts.genesisBaseUrl) : null,
       expectedDurationSeconds: s.durationSec,
@@ -152,6 +138,8 @@ export interface MaterializeResult {
   /** false when the procedure for this equipment+version already existed (no-op re-run). */
   procedureCreated: boolean;
   stepsInserted: number;
+  /** Steps updated in place on a `refreshSteps` re-run of an existing procedure. */
+  stepsUpdated: number;
 }
 
 /** Oldest org wins — that's the seeded demo org. Callers may override via `orgId`. */
@@ -166,10 +154,16 @@ async function resolveOrgId(explicit?: string): Promise<string> {
   return org.id;
 }
 
-/** Idempotent write of a materialize plan into the live tables. */
+/**
+ * Idempotent write of a materialize plan into the live tables. With `refreshSteps`, an
+ * existing procedure's step rows are updated in place (matched by step number) instead of
+ * being skipped — used to repair/retune an already-materialized procedure without bumping
+ * its version. Updates rather than delete+reinsert so `session_steps` FK references from
+ * past sessions stay intact.
+ */
 export async function materializePlan(
   result: MaterializePlanResult,
-  opts: { orgId?: string } = {},
+  opts: { orgId?: string; refreshSteps?: boolean } = {},
 ): Promise<MaterializeResult> {
   const db = getDb();
   const orgId = await resolveOrgId(opts.orgId);
@@ -199,7 +193,33 @@ export async function materializePlan(
       ),
     );
   if (existing) {
-    return { orgId, equipmentId, procedureId: existing.id, procedureCreated: false, stepsInserted: 0 };
+    let stepsUpdated = 0;
+    if (opts.refreshSteps) {
+      stepsUpdated = await db.transaction(async (tx) => {
+        let updated = 0;
+        for (const s of result.steps) {
+          const { stepNumber, ...fields } = s;
+          const rows = await tx
+            .update(steps)
+            .set(fields)
+            .where(and(eq(steps.procedureId, existing.id), eq(steps.stepNumber, stepNumber)))
+            .returning({ id: steps.id });
+          if (rows.length === 0) {
+            await tx.insert(steps).values({ procedureId: existing.id, ...s });
+          }
+          updated += 1;
+        }
+        return updated;
+      });
+    }
+    return {
+      orgId,
+      equipmentId,
+      procedureId: existing.id,
+      procedureCreated: false,
+      stepsInserted: 0,
+      stepsUpdated,
+    };
   }
 
   const procedureId = await db.transaction(async (tx) => {
@@ -218,5 +238,6 @@ export async function materializePlan(
     procedureId,
     procedureCreated: true,
     stepsInserted: result.steps.length,
+    stepsUpdated: 0,
   };
 }
