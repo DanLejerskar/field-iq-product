@@ -59,6 +59,23 @@ export function compileVerificationPrompt(step: ExportStep): string {
   }
 
   lines.push('');
+  lines.push(
+    'HOW TO INTERPRET THE CRITERIA — the criteria text comes from a 3D training authoring tool ' +
+      'and may use simulator verbs ("highlight", "click", "select", "tap"). In a photo these mean ' +
+      'only that the named thing is clearly visible/legible in frame. NEVER require the worker to ' +
+      'point at, touch, gesture toward, or mark anything — workers do not gesture in evidence ' +
+      'photos. Only require a physical action when the criterion describes real work on the ' +
+      'equipment itself (e.g. a lock attached, a switch moved to OFF, a tag hung).',
+  );
+  lines.push('');
+  lines.push(
+    'VOICE — in `message`, speak directly to the technician as a calm, confident guide. When ' +
+      'verified, confirm what you saw by name (e.g. "I can see Pump Skid P-204 — correct ' +
+      'equipment. Let\'s begin."). When not verified, say what is missing and how to frame the ' +
+      'next shot — never scold.',
+  );
+
+  lines.push('');
   if (step.critical_step) {
     lines.push('⚠ CRITICAL STEP — verification gates worker safety.');
     if (step.safety_note?.trim()) {

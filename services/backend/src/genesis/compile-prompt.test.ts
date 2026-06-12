@@ -67,4 +67,19 @@ describe('compileVerificationPrompt', () => {
     expect(promptHash(a)).toBe(promptHash(b));
     expect(promptHash(a)).not.toBe(promptHash(compileVerificationPrompt(step({ critical_step: true }))));
   });
+  it('tells the grader to interpret simulator verbs as visibility, never gestures', () => {
+    const p = compileVerificationPrompt(
+      step({ expected_outcome: 'Nameplate is highlighted to confirm location.' }),
+    );
+    expect(p).toContain('HOW TO INTERPRET THE CRITERIA');
+    expect(p).toContain('NEVER require the worker to point at, touch, gesture toward, or mark');
+    expect(p).toContain('clearly visible/legible in frame');
+  });
+
+  it('instructs a guide voice for the technician-facing message', () => {
+    const p = compileVerificationPrompt(step());
+    expect(p).toContain('VOICE');
+    expect(p).toContain('calm, confident guide');
+    expect(p).toContain('never scold');
+  });
 });
