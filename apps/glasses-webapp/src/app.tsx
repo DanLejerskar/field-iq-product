@@ -81,13 +81,22 @@ async function fetchSession(
   apiHost: string,
   token: string,
   sessionId: string,
-): Promise<{ steps: StepInfo[]; currentStep: number }> {
+): Promise<{
+  steps: StepInfo[];
+  currentStep: number;
+  sessionStatus: string;
+  stepStatuses: Array<{ stepNumber: number; status: string }>;
+}> {
   const res = await fetch(`${apiHost}/api/sessions/${sessionId}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error(`Failed to load session (${res.status})`);
   const body = (await res.json()) as {
-    state: { currentStepNumber: number };
+    state: {
+      currentStepNumber: number;
+      status: string;
+      steps?: Array<{ stepNumber: number; status: string }>;
+    };
     steps: Array<{
       stepNumber: number;
       title: string;
@@ -97,6 +106,11 @@ async function fetchSession(
   };
   return {
     currentStep: body.state.currentStepNumber,
+    sessionStatus: body.state.status,
+    stepStatuses: (body.state.steps ?? []).map((s) => ({
+      stepNumber: s.stepNumber,
+      status: s.status,
+    })),
     steps: body.steps.map((s) => ({
       stepNumber: s.stepNumber,
       title: s.title,
@@ -328,6 +342,32 @@ export function App() {
     };
   }, [params.sessionId, params.token, params.apiHost, params.wsHost]);
 
+  // Verdict safety net: while a photo is being reviewed, poll the session
+  // REST state every few seconds. If the WS missed the verdict (iOS kills the
+  // socket during camera capture), this catches the session up: advanced →
+  // next step, retrying → retake banner, completed → done. The reducer only
+  // applies poll-sync while cardState is 'processing', so WS events always win.
+  useEffect(() => {
+    if (MOCK_MODE) return;
+    if (state.cardState !== 'processing' || !params.sessionId || !params.token) return;
+    const stepAtPollStart = state.currentStep;
+    const timer = setInterval(() => {
+      fetchSession(params.apiHost, params.token, params.sessionId!)
+        .then((data) => {
+          dispatch({
+            kind: 'poll-sync',
+            sessionStatus: data.sessionStatus,
+            currentStep: data.currentStep,
+            stepStatus: data.stepStatuses.find((s) => s.stepNumber === stepAtPollStart)?.status,
+          });
+        })
+        .catch(() => {
+          /* transient poll failures are fine — next tick retries */
+        });
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [state.cardState, state.currentStep, params.sessionId, params.token, params.apiHost]);
+
   // Input — keyboard in dev, Meta gestures in prod.
   useEffect(() => {
     return attachInput({
@@ -431,6 +471,10 @@ export function App() {
       onPhoto={
         params.sessionId && params.token && state.currentStep !== undefined
           ? (file) => {
+              // Show "Claude is reviewing…" instantly — the server's
+              // verification_started event often dies with the WS while the
+              // camera sheet has the page suspended.
+              dispatch({ kind: 'photo-sent' });
               void uploadPhoto(
                 params.apiHost,
                 params.token,
@@ -438,7 +482,8 @@ export function App() {
                 state.currentStep!,
                 file,
               ).catch((err: unknown) => {
-                setBootError(err instanceof Error ? err.message : String(err));
+                const message = err instanceof Error ? err.message : String(err);
+                dispatch({ kind: 'photo-failed', message: `${message} — tap PHOTO to retry` });
               });
             }
           : undefined
