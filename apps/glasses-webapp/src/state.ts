@@ -5,7 +5,15 @@ export type Action =
   | { kind: 'event'; event: SessionEventEnvelope }
   | { kind: 'connection'; status: HudState['connection'] }
   | { kind: 'hydrate'; sessionId: string; steps: HudState['steps']; currentStep: number }
-  | { kind: 'toggle-reference' };
+  | { kind: 'toggle-reference' }
+  // Optimistic local feedback: the photo left the device — show "reviewing"
+  // immediately instead of waiting for the server's verification_started
+  // event, which is lost when iOS suspends the WebSocket during camera capture.
+  | { kind: 'photo-sent' }
+  | { kind: 'photo-failed'; message: string }
+  // Reconciliation from the REST poll that runs while cardState is
+  // 'processing' — the safety net for verdicts whose WS events were missed.
+  | { kind: 'poll-sync'; sessionStatus: string; currentStep: number; stepStatus?: string };
 
 function cardForEvent(type: SessionEventEnvelope['type']): CardState | undefined {
   switch (type) {
@@ -47,6 +55,38 @@ export function reduce(state: HudState, action: Action): HudState {
 
     case 'toggle-reference':
       return { ...state, showingReference: !state.showingReference };
+
+    case 'photo-sent':
+      return { ...state, cardState: 'processing', message: undefined };
+
+    case 'photo-failed':
+      return { ...state, cardState: 'retry', message: action.message };
+
+    case 'poll-sync': {
+      // Only reconcile while we're waiting on a verdict; never clobber a
+      // state the WS already delivered (its events carry richer messages).
+      if (state.cardState !== 'processing') return state;
+      if (action.sessionStatus === 'completed') {
+        return { ...state, cardState: 'complete' };
+      }
+      const current = state.currentStep ?? 0;
+      if (action.currentStep > current) {
+        return {
+          ...state,
+          currentStep: action.currentStep,
+          cardState: 'pending',
+          showingReference: false,
+          verified: new Set(state.verified).add(current),
+        };
+      }
+      if (action.stepStatus === 'retrying') {
+        return { ...state, cardState: 'retry', message: 'Please retake the photo' };
+      }
+      if (action.stepStatus === 'failed') {
+        return { ...state, cardState: 'error', message: 'Verification failed — call trainer' };
+      }
+      return state;
+    }
 
     case 'event': {
       const e = action.event;

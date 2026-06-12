@@ -80,4 +80,61 @@ describe('reducer', () => {
     });
     expect(s.cardState).toBe('complete');
   });
+
+  it('photo-sent shows processing immediately; photo-failed surfaces a retry', () => {
+    let s = reduce(initialState, { kind: 'hydrate', sessionId: 's1', steps: [], currentStep: 1 });
+    s = reduce(s, { kind: 'photo-sent' });
+    expect(s.cardState).toBe('processing');
+    s = reduce(s, {
+      kind: 'photo-failed',
+      message: 'Photo upload failed (413) — tap PHOTO to retry',
+    });
+    expect(s.cardState).toBe('retry');
+    expect(s.message).toContain('413');
+  });
+
+  it('poll-sync advances past a missed verified+advanced WS pair', () => {
+    let s = reduce(initialState, { kind: 'hydrate', sessionId: 's1', steps: [], currentStep: 3 });
+    s = reduce(s, { kind: 'photo-sent' });
+    s = reduce(s, { kind: 'poll-sync', sessionStatus: 'active', currentStep: 4 });
+    expect(s.currentStep).toBe(4);
+    expect(s.cardState).toBe('pending');
+    expect(s.verified.has(3)).toBe(true);
+  });
+
+  it('poll-sync surfaces a missed retry verdict on the same step', () => {
+    let s = reduce(initialState, { kind: 'hydrate', sessionId: 's1', steps: [], currentStep: 2 });
+    s = reduce(s, { kind: 'photo-sent' });
+    s = reduce(s, {
+      kind: 'poll-sync',
+      sessionStatus: 'active',
+      currentStep: 2,
+      stepStatus: 'retrying',
+    });
+    expect(s.cardState).toBe('retry');
+    expect(s.message).toBe('Please retake the photo');
+  });
+
+  it('poll-sync completes the session when the server says completed', () => {
+    let s = reduce(initialState, { kind: 'hydrate', sessionId: 's1', steps: [], currentStep: 12 });
+    s = reduce(s, { kind: 'photo-sent' });
+    s = reduce(s, { kind: 'poll-sync', sessionStatus: 'completed', currentStep: 12 });
+    expect(s.cardState).toBe('complete');
+  });
+
+  it('poll-sync never clobbers a state the WS already delivered', () => {
+    let s = reduce(initialState, { kind: 'hydrate', sessionId: 's1', steps: [], currentStep: 2 });
+    s = reduce(s, {
+      kind: 'event',
+      event: evt({ eventId: 7, type: 'step.verified', stepNumber: 2, message: 'OK' }),
+    });
+    expect(s.cardState).toBe('verified');
+    s = reduce(s, {
+      kind: 'poll-sync',
+      sessionStatus: 'active',
+      currentStep: 2,
+      stepStatus: 'retrying',
+    });
+    expect(s.cardState).toBe('verified'); // untouched — not processing
+  });
 });

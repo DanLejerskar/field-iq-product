@@ -61,10 +61,29 @@ export function connect(url: string, handlers: WsHandlers): WsClient {
     socket.addEventListener('error', () => socket?.close());
   };
 
+  // iOS Safari suspends the page (and silently kills the socket) while the
+  // camera sheet is open — and no 'close' event ever fires, so the backoff
+  // loop never runs and the HUD misses its verdicts. Force a reconnect the
+  // moment the page becomes visible again; the resubscribe replays anything
+  // missed via lastEventId.
+  const onVisible = () => {
+    if (closed || document.visibilityState !== 'visible') return;
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      attempt = 0;
+      socket.close(); // triggers 'close' → dropped() → fast reopen + replay
+    }
+  };
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', onVisible);
+  }
+
   open();
   return {
     close() {
       closed = true;
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', onVisible);
+      }
       socket?.close();
     },
   };
