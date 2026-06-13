@@ -37,6 +37,14 @@ export interface SceneManifest {
     fov: number;
   };
   annotations: Annotation[];
+  /**
+   * Optional: URL to a real glTF / GLB digital-twin model (e.g. exported from
+   * Genesis). When present, consumers load this model instead of building
+   * primitive meshes from `components`. The `components` array still carries
+   * labels / state / tap-targets, mapped onto model nodes via
+   * `ComponentSpec.nodeName`. Absent on the mock (primitive) manifests.
+   */
+  modelUrl?: string;
 }
 
 export interface ComponentSpec {
@@ -54,6 +62,13 @@ export interface ComponentSpec {
   material: { color: string; metalness?: number; roughness?: number };
   /** Optional state ("on/off", "open/closed", …). Used by phone-companion-3d for the right visual cue. */
   state?: string;
+  /**
+   * Optional: the node name inside a glTF / GLB model (see
+   * `SceneManifest.modelUrl`) that this component maps to. Lets the viewer
+   * attach labels, state, and tap-targets to real model nodes. Falls back to
+   * `id` when omitted. Ignored on primitive (mock) manifests.
+   */
+  nodeName?: string;
 }
 
 export interface Annotation {
