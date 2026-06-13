@@ -4,6 +4,7 @@
 import { and, desc, eq } from 'drizzle-orm';
 import { getDb } from './client.js';
 import { equipment, procedures, sessions, sessionSteps, steps, users } from './schema.js';
+import { deriveCurrentStepNumber } from '../domain/session-state.js';
 import type { SessionState, StepState } from '../domain/session-state.js';
 import { notFound } from '../errors.js';
 
@@ -151,10 +152,11 @@ export async function loadSessionState(sessionId: string): Promise<SessionState>
     skippable: r.skippable,
   }));
 
-  // The current step is the lowest-numbered step not yet finished (verified/skipped);
-  // if all are finished we stay on the last step (ready to complete).
-  const pending = stepStates.find((s) => s.status !== 'verified' && s.status !== 'skipped');
-  const currentStepNumber = pending?.stepNumber ?? stepStates.length;
+  // Reconstruct the current step to match the in-memory domain model: the
+  // pointer rests on a verified step until `advance` is called, so verified
+  // steps are NOT skipped (see deriveCurrentStepNumber for why a naive
+  // "first non-verified" derivation breaks the advance/continue tap).
+  const currentStepNumber = deriveCurrentStepNumber(stepStates);
 
   return { status: session.status, currentStepNumber, steps: stepStates };
 }

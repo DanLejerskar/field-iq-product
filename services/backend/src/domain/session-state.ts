@@ -36,6 +36,31 @@ function step(state: SessionState, stepNumber: number): StepState {
   return s;
 }
 
+/**
+ * Reconstruct the 1-indexed current step from persisted step rows.
+ *
+ * Must mirror the invariant the in-memory transitions maintain: after a
+ * verdict, `currentStepNumber` rests ON the verified step until `advance` is
+ * explicitly called — verified steps are NOT auto-skipped. A naive
+ * "first non-verified step" derivation jumps the pointer to the next
+ * (pending) step the instant one is verified, which then makes `advance`
+ * read an unverified step and reject the user's "continue" tap with a 409.
+ *
+ *   1. an actively-worked step (in_progress / retrying) is always current;
+ *   2. otherwise we're in the gap right after a verdict, before the user
+ *      taps continue — current is the highest verified step (awaiting
+ *      advance), or the final step once everything is verified;
+ *   3. a brand-new session with nothing started — current is the first step.
+ */
+export function deriveCurrentStepNumber(
+  steps: ReadonlyArray<Pick<StepState, 'stepNumber' | 'status'>>,
+): number {
+  const active = steps.find((s) => s.status === 'in_progress' || s.status === 'retrying');
+  if (active) return active.stepNumber;
+  const lastVerified = [...steps].reverse().find((s) => s.status === 'verified');
+  return lastVerified?.stepNumber ?? steps[0]?.stepNumber ?? 1;
+}
+
 /** Apply a verification verdict to the current step. Returns the updated state. */
 export function applyVerdict(
   state: SessionState,

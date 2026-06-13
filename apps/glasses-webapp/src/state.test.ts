@@ -136,6 +136,17 @@ describe('reducer', () => {
     expect(s.message).toBeUndefined();
   });
 
+  it('advance-ack with completed flips the final step to the complete card', () => {
+    let s = reduce(initialState, { kind: 'hydrate', sessionId: 's1', steps: [], currentStep: 12 });
+    s = reduce(s, {
+      kind: 'event',
+      event: evt({ eventId: 1, type: 'step.verified', stepNumber: 12, message: 'OK' }),
+    });
+    s = reduce(s, { kind: 'advance-ack', stepNumber: 12, completed: true });
+    expect(s.cardState).toBe('complete');
+    expect(s.verified.has(12)).toBe(true);
+  });
+
   it('advance-ack is a no-op when the server step is not ahead (idempotent retry)', () => {
     let s = reduce(initialState, { kind: 'hydrate', sessionId: 's1', steps: [], currentStep: 3 });
     s = reduce(s, { kind: 'advance-ack', stepNumber: 3 });

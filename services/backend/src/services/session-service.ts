@@ -9,6 +9,7 @@ import {
   applyVerdict,
   complete as completeState,
   abandon as abandonState,
+  isComplete,
 } from '../domain/session-state.js';
 import { conflict, notFound } from '../errors.js';
 import {
@@ -90,8 +91,15 @@ export async function recordVerdict(
   });
 }
 
-/** User pinch: advance to the next step once the current is verified. */
-export async function advanceSession(sessionId: string): Promise<{ currentStepNumber: number }> {
+/**
+ * User taps "continue" (pinch on glasses, tap on phone): advance to the next
+ * step once the current is verified. `advanceState` throws 409 if the current
+ * step isn't verified yet, so reaching past it means the current step passed.
+ * When the current step was the last one, advancing completes the procedure.
+ */
+export async function advanceSession(
+  sessionId: string,
+): Promise<{ currentStepNumber: number; completed: boolean }> {
   const session = await getSession(sessionId);
   if (!session) throw notFound('Session not found');
   const before = await loadSessionState(sessionId);
@@ -108,8 +116,16 @@ export async function advanceSession(sessionId: string): Promise<{ currentStepNu
       stepNumber: after.currentStepNumber,
       stepId: nextStep?.id,
     });
+    return { currentStepNumber: after.currentStepNumber, completed: false };
   }
-  return { currentStepNumber: after.currentStepNumber };
+
+  // Advance didn't move the pointer: the verified current step was the last
+  // one. Tapping "continue" on a fully-verified procedure completes it.
+  if (session.status === 'active' && isComplete(after)) {
+    await completeSession(sessionId);
+    return { currentStepNumber: after.currentStepNumber, completed: true };
+  }
+  return { currentStepNumber: after.currentStepNumber, completed: false };
 }
 
 export async function completeSession(sessionId: string): Promise<void> {
