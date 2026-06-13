@@ -102,6 +102,22 @@ describe('reducer', () => {
     expect(s.verified.has(3)).toBe(true);
   });
 
+  it('poll-sync surfaces a missed PASS verdict as the verified banner', () => {
+    // The regression guard for the advance-409 fix: once the server rests
+    // currentStepNumber on the verified step, poll-sync must recognise a
+    // verified current step (WS event lost) instead of hanging on processing.
+    let s = reduce(initialState, { kind: 'hydrate', sessionId: 's1', steps: [], currentStep: 2 });
+    s = reduce(s, { kind: 'photo-sent' });
+    s = reduce(s, {
+      kind: 'poll-sync',
+      sessionStatus: 'active',
+      currentStep: 2,
+      stepStatus: 'verified',
+    });
+    expect(s.cardState).toBe('verified');
+    expect(s.verified.has(2)).toBe(true);
+  });
+
   it('poll-sync surfaces a missed retry verdict on the same step', () => {
     let s = reduce(initialState, { kind: 'hydrate', sessionId: 's1', steps: [], currentStep: 2 });
     s = reduce(s, { kind: 'photo-sent' });
