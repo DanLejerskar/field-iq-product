@@ -182,6 +182,14 @@ async function uploadPhoto(
   if (!res.ok) throw new Error(`Photo upload failed (${res.status})`);
 }
 
+/**
+ * Build stamp. Bump on every behavioural ship so a glance at the ?debug
+ * overlay (or the topbar) proves which code the device actually loaded —
+ * iOS Safari caches the JS bundle aggressively and two visually-identical
+ * builds otherwise look the same on screen.
+ */
+const BUILD_TAG = 'advance-rest+debug-1';
+
 type AuthState =
   | { kind: 'mock' }
   | { kind: 'verifying-token'; token: string }
@@ -208,6 +216,7 @@ export function App() {
   const [elapsed, setElapsed] = useState('0:00');
   const [startedAt] = useState(Date.now());
   const [authState, setAuthState] = useState<AuthState>(initialAuth);
+  const [debugLog, setDebugLog] = useState<string[]>([]);
   const [showSignIn, setShowSignIn] = useState(false);
   const [startingSession, setStartingSession] = useState(false);
   // wsHost lives on params (via envHosts) for the realtime path; pull apiHost
@@ -368,24 +377,43 @@ export function App() {
     return () => clearInterval(timer);
   }, [state.cardState, state.currentStep, params.sessionId, params.token, params.apiHost]);
 
+  // On-screen debug trail (visible only with ?debug=1). Keeps the last dozen
+  // lines so a tester reading the phone can see each step of a flow without a
+  // remote inspector. Append-only; newest at the bottom.
+  const logDebug = (line: string) => {
+    const ts = new Date().toLocaleTimeString();
+    setDebugLog((prev) => [...prev.slice(-11), `${ts}  ${line}`]);
+  };
+
   // Advance past a verified step. Pinch (glasses) and tap (phone) share this.
   // The REST response carries the new step number, so we apply it locally
   // (advance-ack) and don't depend on the WS `session.advanced` event — which
   // dies whenever iOS suspends the page while the verified banner sits idle.
   const advanceStep = async () => {
-    if (state.cardState !== 'verified' || !params.sessionId) return;
+    logDebug(`tap received · card=${state.cardState} · step=${state.currentStep ?? '-'}`);
+    if (state.cardState !== 'verified' || !params.sessionId) {
+      logDebug(`advance skipped (need verified+session)`);
+      return;
+    }
     try {
+      logDebug('POST /advance …');
       const res = await fetch(`${params.apiHost}/api/sessions/${params.sessionId}/advance`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${params.token}` },
       });
-      if (!res.ok) return;
+      logDebug(`POST /advance → HTTP ${res.status}`);
+      if (!res.ok) {
+        logDebug(`advance failed (${res.status}) — not moving`);
+        return;
+      }
       const body = (await res.json()) as { currentStepNumber?: number };
+      logDebug(`response: currentStepNumber=${String(body.currentStepNumber)}`);
       if (typeof body.currentStepNumber === 'number') {
         dispatch({ kind: 'advance-ack', stepNumber: body.currentStepNumber });
+        logDebug(`→ advanced to step ${body.currentStepNumber}`);
       }
-    } catch {
-      /* transient — user can tap again; WS will reconcile if it reconnects */
+    } catch (err) {
+      logDebug(`advance error: ${String(err).slice(0, 80)}`);
     }
   };
 
@@ -475,34 +503,67 @@ export function App() {
     );
   }
 
+  const debugOn =
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debug');
+
   return (
-    <StepCard
-      state={state}
-      elapsed={elapsed}
-      onAdvance={() => void advanceStep()}
-      onVerify={() => {
-        /* photo capture happens on the companion (M7) */
-      }}
-      onPhoto={
-        params.sessionId && params.token && state.currentStep !== undefined
-          ? (file) => {
-              // Show "Claude is reviewing…" instantly — the server's
-              // verification_started event often dies with the WS while the
-              // camera sheet has the page suspended.
-              dispatch({ kind: 'photo-sent' });
-              void uploadPhoto(
-                params.apiHost,
-                params.token,
-                params.sessionId!,
-                state.currentStep!,
-                file,
-              ).catch((err: unknown) => {
-                const message = err instanceof Error ? err.message : String(err);
-                dispatch({ kind: 'photo-failed', message: `${message} — tap PHOTO to retry` });
-              });
-            }
-          : undefined
-      }
-    />
+    <>
+      <StepCard
+        state={state}
+        elapsed={elapsed}
+        onAdvance={() => void advanceStep()}
+        onVerify={() => {
+          /* photo capture happens on the companion (M7) */
+        }}
+        onPhoto={
+          params.sessionId && params.token && state.currentStep !== undefined
+            ? (file) => {
+                // Show "Claude is reviewing…" instantly — the server's
+                // verification_started event often dies with the WS while the
+                // camera sheet has the page suspended.
+                dispatch({ kind: 'photo-sent' });
+                logDebug(`photo sent · step=${state.currentStep ?? '-'}`);
+                void uploadPhoto(
+                  params.apiHost,
+                  params.token,
+                  params.sessionId!,
+                  state.currentStep!,
+                  file,
+                ).catch((err: unknown) => {
+                  const message = err instanceof Error ? err.message : String(err);
+                  dispatch({ kind: 'photo-failed', message: `${message} — tap PHOTO to retry` });
+                });
+              }
+            : undefined
+        }
+      />
+      {debugOn ? (
+        <div
+          style={{
+            position: 'fixed',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            maxHeight: '40vh',
+            overflowY: 'auto',
+            background: 'rgba(0,0,0,0.85)',
+            color: '#7CFFB2',
+            font: '11px/1.4 monospace',
+            padding: '8px 10px',
+            zIndex: 9999,
+            borderTop: '1px solid #2a2a2a',
+          }}
+        >
+          <div style={{ color: '#fff', marginBottom: 4 }}>
+            build {BUILD_TAG} · conn {state.connection} · card {state.cardState} · step{' '}
+            {state.currentStep ?? '-'}/{state.totalSteps}
+          </div>
+          {debugLog.length === 0 ? <div>(tap things — events log here)</div> : null}
+          {debugLog.map((l, i) => (
+            <div key={i}>{l}</div>
+          ))}
+        </div>
+      ) : null}
+    </>
   );
 }
