@@ -368,17 +368,20 @@ export function App() {
     return () => clearInterval(timer);
   }, [state.cardState, state.currentStep, params.sessionId, params.token, params.apiHost]);
 
+  // Advance past a verified step. Pinch (glasses) and tap (phone) share this.
+  const advanceStep = async () => {
+    if (state.cardState === 'verified' && params.sessionId) {
+      await fetch(`${params.apiHost}/api/sessions/${params.sessionId}/advance`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${params.token}` },
+      });
+    }
+  };
+
   // Input — keyboard in dev, Meta gestures in prod.
   useEffect(() => {
     return attachInput({
-      onEnter: async () => {
-        if (state.cardState === 'verified' && params.sessionId) {
-          await fetch(`${params.apiHost}/api/sessions/${params.sessionId}/advance`, {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${params.token}` },
-          });
-        }
-      },
+      onEnter: advanceStep,
       onCancel: () => {
         /* Reserved for the supervisor-confirmed abandon flow (M8). */
       },
@@ -465,6 +468,7 @@ export function App() {
     <StepCard
       state={state}
       elapsed={elapsed}
+      onAdvance={() => void advanceStep()}
       onVerify={() => {
         /* photo capture happens on the companion (M7) */
       }}

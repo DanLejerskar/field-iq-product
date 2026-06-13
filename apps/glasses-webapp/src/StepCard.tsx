@@ -6,9 +6,16 @@ interface Props {
   onVerify: () => void;
   /** Browser-testing affordance: upload a photo for the current step. */
   onPhoto?: (file: File) => void;
+  /** Advance past a verified step. Pinch fires this on glasses; tap on phone. */
+  onAdvance?: () => void;
 }
 
-function bottom(state: HudState, onVerify: () => void, onPhoto: Props['onPhoto']) {
+function bottom(
+  state: HudState,
+  onVerify: () => void,
+  onPhoto: Props['onPhoto'],
+  onAdvance: Props['onAdvance'],
+) {
   switch (state.cardState) {
     case 'pending':
       return onPhoto ? (
@@ -40,8 +47,12 @@ function bottom(state: HudState, onVerify: () => void, onPhoto: Props['onPhoto']
       );
     case 'verified':
       return (
-        <div class="hud__banner hud__banner--verified">
-          ✅ Step {state.currentStep} verified — pinch to continue
+        <div
+          class="hud__banner hud__banner--verified"
+          style={{ cursor: 'pointer' }}
+          onClick={onAdvance}
+        >
+          ✅ Step {state.currentStep} verified — {onAdvance ? 'tap or pinch' : 'pinch'} to continue
         </div>
       );
     case 'retry':
@@ -67,7 +78,7 @@ function bottom(state: HudState, onVerify: () => void, onPhoto: Props['onPhoto']
   }
 }
 
-export function StepCard({ state, elapsed, onVerify, onPhoto }: Props) {
+export function StepCard({ state, elapsed, onVerify, onPhoto, onAdvance }: Props) {
   const step = state.steps.find((s) => s.stepNumber === state.currentStep);
   if (state.showingReference && step?.referenceImageUrl) {
     return (
@@ -95,7 +106,7 @@ export function StepCard({ state, elapsed, onVerify, onPhoto }: Props) {
         {step?.referenceImageUrl ? <div class="hud__hint">← swipe to view reference</div> : null}
       </div>
 
-      <div class="hud__bottom">{bottom(state, onVerify, onPhoto)}</div>
+      <div class="hud__bottom">{bottom(state, onVerify, onPhoto, onAdvance)}</div>
       <div class="hud__edge" />
     </section>
   );
