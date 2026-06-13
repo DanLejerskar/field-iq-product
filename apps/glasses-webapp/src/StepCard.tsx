@@ -8,6 +8,8 @@ interface Props {
   onPhoto?: (file: File) => void;
   /** Advance past a verified step. Pinch fires this on glasses; tap on phone. */
   onAdvance?: () => void;
+  /** Show/hide the reference image. Swipe fires this on glasses; tap on phone. */
+  onToggleReference?: () => void;
 }
 
 function bottom(
@@ -78,14 +80,26 @@ function bottom(
   }
 }
 
-export function StepCard({ state, elapsed, onVerify, onPhoto, onAdvance }: Props) {
+export function StepCard({
+  state,
+  elapsed,
+  onVerify,
+  onPhoto,
+  onAdvance,
+  onToggleReference,
+}: Props) {
   const step = state.steps.find((s) => s.stepNumber === state.currentStep);
   if (state.showingReference && step?.referenceImageUrl) {
     return (
-      <section class={`hud hud--${state.cardState as CardState}`}>
+      <section
+        class={`hud hud--${state.cardState as CardState}`}
+        style={onToggleReference ? { cursor: 'pointer' } : undefined}
+        onClick={onToggleReference}
+      >
         <div class="hud__reference">
           <img src={step.referenceImageUrl} alt={`Reference for step ${step.stepNumber}`} />
         </div>
+        <div class="hud__hint">{onToggleReference ? 'tap to return' : 'swipe to return'}</div>
         <div class="hud__edge" />
       </section>
     );
@@ -103,7 +117,15 @@ export function StepCard({ state, elapsed, onVerify, onPhoto, onAdvance }: Props
       <div class="hud__body">
         <h1 class="hud__title">{step?.title ?? 'Tap to scan equipment'}</h1>
         {step ? <p class="hud__instruction">{step.instruction}</p> : null}
-        {step?.referenceImageUrl ? <div class="hud__hint">← swipe to view reference</div> : null}
+        {step?.referenceImageUrl ? (
+          <div
+            class="hud__hint"
+            style={onToggleReference ? { cursor: 'pointer' } : undefined}
+            onClick={onToggleReference}
+          >
+            {onToggleReference ? 'tap to view reference' : '← swipe to view reference'}
+          </div>
+        ) : null}
       </div>
 
       <div class="hud__bottom">{bottom(state, onVerify, onPhoto, onAdvance)}</div>
