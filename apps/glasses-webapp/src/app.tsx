@@ -188,7 +188,7 @@ async function uploadPhoto(
  * iOS Safari caches the JS bundle aggressively and two visually-identical
  * builds otherwise look the same on screen.
  */
-const BUILD_TAG = 'advance-409-fix-2';
+const BUILD_TAG = 'tap-reference-3';
 
 type AuthState =
   | { kind: 'mock' }
@@ -520,6 +520,7 @@ export function App() {
         state={state}
         elapsed={elapsed}
         onAdvance={() => void advanceStep()}
+        onToggleReference={() => dispatch({ kind: 'toggle-reference' })}
         onVerify={() => {
           /* photo capture happens on the companion (M7) */
         }}
