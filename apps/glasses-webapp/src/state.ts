@@ -116,6 +116,19 @@ export function reduce(state: HudState, action: Action): HudState {
           verified: new Set(state.verified).add(current),
         };
       }
+      // The current step passed but its WS step.verified event never arrived
+      // (iOS suspended the socket). Surface the verified banner so the user
+      // can tap continue. Without this the card hangs on 'processing' forever
+      // — the server rests currentStepNumber on the verified step now, so the
+      // `action.currentStep > current` check above no longer catches this.
+      if (action.stepStatus === 'verified') {
+        return {
+          ...state,
+          cardState: 'verified',
+          message: undefined,
+          verified: new Set(state.verified).add(current),
+        };
+      }
       if (action.stepStatus === 'retrying') {
         return { ...state, cardState: 'retry', message: 'Please retake the photo' };
       }

@@ -188,7 +188,7 @@ async function uploadPhoto(
  * iOS Safari caches the JS bundle aggressively and two visually-identical
  * builds otherwise look the same on screen.
  */
-const BUILD_TAG = 'tap-reference-3';
+const BUILD_TAG = 'poll-verified-4';
 
 type AuthState =
   | { kind: 'mock' }
