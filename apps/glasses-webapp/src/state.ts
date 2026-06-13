@@ -13,7 +13,12 @@ export type Action =
   | { kind: 'photo-failed'; message: string }
   // Reconciliation from the REST poll that runs while cardState is
   // 'processing' — the safety net for verdicts whose WS events were missed.
-  | { kind: 'poll-sync'; sessionStatus: string; currentStep: number; stepStatus?: string };
+  | { kind: 'poll-sync'; sessionStatus: string; currentStep: number; stepStatus?: string }
+  // Local acknowledgement of a successful POST /advance: the REST response
+  // carries the new step number, so we can move forward without waiting on
+  // the `session.advanced` WS event (which dies when iOS suspends the page
+  // while the verified banner is left sitting).
+  | { kind: 'advance-ack'; stepNumber: number };
 
 function cardForEvent(type: SessionEventEnvelope['type']): CardState | undefined {
   switch (type) {
@@ -61,6 +66,25 @@ export function reduce(state: HudState, action: Action): HudState {
 
     case 'photo-failed':
       return { ...state, cardState: 'retry', message: action.message };
+
+    case 'advance-ack': {
+      // Only act on advances that actually move the user forward; treating a
+      // same-step ack as movement would clobber a fresh verdict.
+      const current = state.currentStep ?? 0;
+      if (action.stepNumber <= current) return state;
+      const verifiedThru =
+        state.currentStep !== undefined
+          ? new Set(state.verified).add(state.currentStep)
+          : new Set(state.verified);
+      return {
+        ...state,
+        currentStep: action.stepNumber,
+        cardState: 'pending',
+        message: undefined,
+        showingReference: false,
+        verified: verifiedThru,
+      };
+    }
 
     case 'poll-sync': {
       // Only reconcile while we're waiting on a verdict; never clobber a
