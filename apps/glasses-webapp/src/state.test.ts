@@ -122,6 +122,28 @@ describe('reducer', () => {
     expect(s.cardState).toBe('complete');
   });
 
+  it('advance-ack moves forward without a WS event and marks the prior step verified', () => {
+    let s = reduce(initialState, { kind: 'hydrate', sessionId: 's1', steps: [], currentStep: 1 });
+    s = reduce(s, {
+      kind: 'event',
+      event: evt({ eventId: 1, type: 'step.verified', stepNumber: 1, message: 'OK' }),
+    });
+    expect(s.cardState).toBe('verified');
+    s = reduce(s, { kind: 'advance-ack', stepNumber: 2 });
+    expect(s.currentStep).toBe(2);
+    expect(s.cardState).toBe('pending');
+    expect(s.verified.has(1)).toBe(true);
+    expect(s.message).toBeUndefined();
+  });
+
+  it('advance-ack is a no-op when the server step is not ahead (idempotent retry)', () => {
+    let s = reduce(initialState, { kind: 'hydrate', sessionId: 's1', steps: [], currentStep: 3 });
+    s = reduce(s, { kind: 'advance-ack', stepNumber: 3 });
+    expect(s.currentStep).toBe(3);
+    expect(s.cardState).toBe('pending');
+    expect(s.verified.has(3)).toBe(false);
+  });
+
   it('poll-sync never clobbers a state the WS already delivered', () => {
     let s = reduce(initialState, { kind: 'hydrate', sessionId: 's1', steps: [], currentStep: 2 });
     s = reduce(s, {

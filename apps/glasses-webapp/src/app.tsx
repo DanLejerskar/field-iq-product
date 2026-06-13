@@ -369,12 +369,23 @@ export function App() {
   }, [state.cardState, state.currentStep, params.sessionId, params.token, params.apiHost]);
 
   // Advance past a verified step. Pinch (glasses) and tap (phone) share this.
+  // The REST response carries the new step number, so we apply it locally
+  // (advance-ack) and don't depend on the WS `session.advanced` event — which
+  // dies whenever iOS suspends the page while the verified banner sits idle.
   const advanceStep = async () => {
-    if (state.cardState === 'verified' && params.sessionId) {
-      await fetch(`${params.apiHost}/api/sessions/${params.sessionId}/advance`, {
+    if (state.cardState !== 'verified' || !params.sessionId) return;
+    try {
+      const res = await fetch(`${params.apiHost}/api/sessions/${params.sessionId}/advance`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${params.token}` },
       });
+      if (!res.ok) return;
+      const body = (await res.json()) as { currentStepNumber?: number };
+      if (typeof body.currentStepNumber === 'number') {
+        dispatch({ kind: 'advance-ack', stepNumber: body.currentStepNumber });
+      }
+    } catch {
+      /* transient — user can tap again; WS will reconcile if it reconnects */
     }
   };
 
