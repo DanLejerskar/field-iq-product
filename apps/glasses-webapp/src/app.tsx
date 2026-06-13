@@ -188,7 +188,7 @@ async function uploadPhoto(
  * iOS Safari caches the JS bundle aggressively and two visually-identical
  * builds otherwise look the same on screen.
  */
-const BUILD_TAG = 'advance-rest+debug-1';
+const BUILD_TAG = 'advance-409-fix-2';
 
 type AuthState =
   | { kind: 'mock' }
@@ -406,11 +406,19 @@ export function App() {
         logDebug(`advance failed (${res.status}) — not moving`);
         return;
       }
-      const body = (await res.json()) as { currentStepNumber?: number };
-      logDebug(`response: currentStepNumber=${String(body.currentStepNumber)}`);
+      const body = (await res.json()) as { currentStepNumber?: number; completed?: boolean };
+      logDebug(
+        `response: currentStepNumber=${String(body.currentStepNumber)} completed=${String(body.completed)}`,
+      );
       if (typeof body.currentStepNumber === 'number') {
-        dispatch({ kind: 'advance-ack', stepNumber: body.currentStepNumber });
-        logDebug(`→ advanced to step ${body.currentStepNumber}`);
+        dispatch({
+          kind: 'advance-ack',
+          stepNumber: body.currentStepNumber,
+          completed: body.completed,
+        });
+        logDebug(
+          body.completed ? '→ procedure complete' : `→ advanced to step ${body.currentStepNumber}`,
+        );
       }
     } catch (err) {
       logDebug(`advance error: ${String(err).slice(0, 80)}`);

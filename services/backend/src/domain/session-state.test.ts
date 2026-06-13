@@ -4,9 +4,11 @@ import {
   advance,
   applyVerdict,
   complete,
+  deriveCurrentStepNumber,
   isComplete,
   skip,
   type SessionState,
+  type StepStatus,
 } from './session-state.js';
 
 function freshSession(stepCount = 10, retryThreshold = 3): SessionState {
@@ -120,5 +122,51 @@ describe('abandon / skip / inactive guards', () => {
 
   it('rejects skipping a non-skippable step', () => {
     expect(() => skip(freshSession(3), 1)).toThrow(/not skippable/);
+  });
+});
+
+describe('deriveCurrentStepNumber', () => {
+  const rows = (statuses: StepStatus[]) =>
+    statuses.map((status, i) => ({ stepNumber: i + 1, status }));
+
+  it('points at the in_progress step at the start', () => {
+    expect(deriveCurrentStepNumber(rows(['in_progress', 'pending', 'pending']))).toBe(1);
+  });
+
+  it('rests on the just-verified step while the next is still pending (the advance gap)', () => {
+    // This is the exact state that produced the 409: step 1 verified, step 2
+    // not yet started. Current must stay 1 so `advance` can promote step 2.
+    expect(deriveCurrentStepNumber(rows(['verified', 'pending', 'pending']))).toBe(1);
+  });
+
+  it('follows the pointer onto the next step once it is in_progress', () => {
+    expect(deriveCurrentStepNumber(rows(['verified', 'in_progress', 'pending']))).toBe(2);
+  });
+
+  it('uses the highest verified step in the gap after several steps', () => {
+    expect(deriveCurrentStepNumber(rows(['verified', 'verified', 'pending']))).toBe(2);
+  });
+
+  it('returns the last step when everything is verified (ready to complete)', () => {
+    expect(deriveCurrentStepNumber(rows(['verified', 'verified', 'verified']))).toBe(3);
+  });
+
+  it('points at a retrying step', () => {
+    expect(deriveCurrentStepNumber(rows(['verified', 'retrying', 'pending']))).toBe(2);
+  });
+
+  it('round-trips with advance: a verified gap state advances cleanly', () => {
+    const s: SessionState = {
+      status: 'active',
+      currentStepNumber: deriveCurrentStepNumber(rows(['verified', 'pending', 'pending'])),
+      steps: [
+        { stepNumber: 1, status: 'verified', retryCount: 0, retryThreshold: 3, skippable: false },
+        { stepNumber: 2, status: 'pending', retryCount: 0, retryThreshold: 3, skippable: false },
+        { stepNumber: 3, status: 'pending', retryCount: 0, retryThreshold: 3, skippable: false },
+      ],
+    };
+    const after = advance(s);
+    expect(after.currentStepNumber).toBe(2);
+    expect(after.steps[1]!.status).toBe('in_progress');
   });
 });
